@@ -1,0 +1,81 @@
+{
+  "version": "1.0",
+  "rules": [
+    {
+      "rule_id": "F001",
+      "name": "低温禁短装",
+      "dimension": "temperature",
+      "condition": {
+        "temp_max": 5,
+        "forbid_category_l2": ["短裤", "短袖", "吊带", "背心", "凉鞋", "薄裙"]
+      },
+      "source": "服装材料学·保暖性"
+    },
+    {
+      "rule_id": "F002",
+      "name": "高温禁厚装",
+      "dimension": "temperature",
+      "condition": {
+        "temp_min": 28,
+        "forbid_category_l2": ["羽绒服", "棉服", "大衣", "厚毛衣"]
+      },
+      "source": "服装材料学·透气性"
+    },
+    {
+      "rule_id": "F003",
+      "name": "正式场合禁休闲",
+      "dimension": "occasion",
+      "condition": {
+        "occasion": ["面试", "正式"],
+        "forbid_category_l2": ["运动裤", "拖鞋", "背心", "短裤", "卫衣"]
+      },
+      "source": "场景着装礼仪规范"
+    },
+    {
+      "rule_id": "F004",
+      "name": "运动场合禁正装",
+      "dimension": "occasion",
+      "condition": {
+        "occasion": ["运动"],
+        "forbid_category_l2": ["皮鞋", "西装外套", "衬衫"]
+      },
+      "source": "场景着装礼仪规范"
+    },
+    {
+      "rule_id": "F005",
+      "name": "三色原则",
+      "dimension": "color",
+      "condition": {
+        "max_main_colors": 3,
+        "exclude_category_l1": ["配饰"]
+      },
+      "source": "服装色彩构成理论"
+    },
+    {
+      "rule_id": "F006",
+      "name": "品类完整性",
+      "dimension": "completeness",
+      "condition": {
+        "require_any": [
+          ["上装", "下装", "鞋"],
+          ["连衣裙", "鞋"]
+        ]
+      },
+      "source": "胶囊衣橱管理理论"
+    },
+    {
+      "rule_id": "F007",
+      "name": "同单品不重复",
+      "dimension": "uniqueness",
+      "condition": { "no_duplicate_item": true },
+      "source": "系统基础规则"
+    },
+    {
+      "rule_id": "F008",
+      "name": "用户排除色",
+      "dimension": "constraint",
+      "condition": { "exclude_color_from_session": true },
+      "source": "用户对话约束"
+    }
+  ]
+}
