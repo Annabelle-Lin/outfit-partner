@@ -1,0 +1,8 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+sqlalchemy>=2.0
+httpx>=0.27          # 和风天气 / 智谱 LLM 调用
+jieba>=0.42          # 知识问答 BM25 检索分词
+rank-bm25>=0.2.2     # 知识问答 BM25 检索
+openpyxl>=3.1        # Excel 导入模板下载与批量导入
+python-multipart>=0.0.9  # FastAPI UploadFile 文件上传依赖

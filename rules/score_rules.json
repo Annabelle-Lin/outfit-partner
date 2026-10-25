@@ -1,0 +1,107 @@
+{
+  "version": "1.0",
+  "rules": [
+    {
+      "rule_id": "S001",
+      "name": "临时偏好-颜色",
+      "dimension": "temp_pref_color",
+      "condition": { "match": "color_brightness", "temp_pref_key": "color" },
+      "weight": 2.0,
+      "source": "用户本次偏好"
+    },
+    {
+      "rule_id": "S002",
+      "name": "临时偏好-款式",
+      "dimension": "temp_pref_style",
+      "condition": { "match": "style", "temp_pref_key": "style" },
+      "weight": 2.0,
+      "source": "用户本次偏好"
+    },
+    {
+      "rule_id": "S003",
+      "name": "长期偏好匹配",
+      "dimension": "long_term_pref",
+      "condition": {
+        "match_dimensions": ["category_l2", "color_family", "style", "fit_snug"],
+        "use_user_preference_score": true
+      },
+      "weight": 1.0,
+      "source": "用户历史反馈"
+    },
+    {
+      "rule_id": "S004",
+      "name": "色彩协调-同色系",
+      "dimension": "color_harmony",
+      "condition": { "color_relation": "same_family" },
+      "weight": 1.0,
+      "source": "服装色彩构成理论"
+    },
+    {
+      "rule_id": "S005",
+      "name": "色彩协调-邻近色",
+      "dimension": "color_harmony",
+      "condition": { "color_relation": "adjacent" },
+      "weight": 0.8,
+      "source": "服装色彩构成理论"
+    },
+    {
+      "rule_id": "S006",
+      "name": "色彩协调-对比色",
+      "dimension": "color_harmony",
+      "condition": { "color_relation": "contrast" },
+      "weight": 0.5,
+      "source": "服装色彩构成理论"
+    },
+    {
+      "rule_id": "S007",
+      "name": "版型比例-上宽下窄",
+      "dimension": "fit_ratio",
+      "condition": {
+        "top_fit_snug": ["宽松", "Oversize"],
+        "bottom_fit_silhouette": ["直筒", "紧身"]
+      },
+      "weight": 1.0,
+      "source": "服装造型与版型设计理论"
+    },
+    {
+      "rule_id": "S008",
+      "name": "版型比例-上短下长",
+      "dimension": "fit_ratio",
+      "condition": { "top_length": "short", "bottom_length": "long" },
+      "weight": 1.0,
+      "source": "服装造型与版型设计理论"
+    },
+    {
+      "rule_id": "S009",
+      "name": "面料季节适配",
+      "dimension": "fabric_season",
+      "condition": { "match_season": true },
+      "weight": 0.5,
+      "source": "服装材料学"
+    },
+    {
+      "rule_id": "S010",
+      "name": "新鲜度",
+      "dimension": "freshness",
+      "condition": { "days_since_last_worn_min": 7 },
+      "weight": 0.5,
+      "source": "胶囊衣橱管理理论"
+    },
+    {
+      "rule_id": "S011",
+      "name": "体型适配-优势强化",
+      "dimension": "body_fit",
+      "condition": { "match_body_shape_advantage": true },
+      "weight": 1.0,
+      "source": "人体体型服饰适配规则"
+    },
+    {
+      "rule_id": "S012",
+      "name": "体型适配-避坑降权",
+      "dimension": "body_fit",
+      "condition": { "match_body_shape_avoid": true },
+      "weight": -1.0,
+      "source": "人体体型服饰适配规则"
+    }
+  ]
+}

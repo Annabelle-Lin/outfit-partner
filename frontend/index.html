@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>衣橱 · 智能穿搭 Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Noto+Serif+SC:wght@500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   设计方向：编辑感 · 精致时尚科技 —— 暖象牙纸面 + 陶土赭红 + 鼠尾草绿
+   ============================================================ */
+:root{
+  --paper:#EDE7DB;
+  --paper-2:#E4DDCF;
+  --paper-3:#D9D1C2;
+  --card:#F7F3EA;
+  --card-2:#F1EBDF;
+  --ink:#3E3A34;
+  --ink-2:#6C6458;
+  --ink-3:#9B9184;
+  --clay:#B5836E;
+  --clay-deep:#9C6C57;
+  --clay-soft:#E7D3C7;
+  --sage:#9CAF88;
+  --sage-soft:#E3E8DA;
+  --blush:#D8C2BC;
+  --gold:#C0A272;
+  --line:#DDD3C2;
+  --line-soft:#EBE3D4;
+  --ok:#8AA47E;
+  --warn:#C09A5A;
+  --bad:#B5705C;
+  --shadow-sm:0 1px 2px rgba(62,58,52,.05),0 2px 8px rgba(62,58,52,.05);
+  --shadow-md:0 2px 6px rgba(62,58,52,.06),0 12px 32px rgba(62,58,52,.10);
+  --shadow-lg:0 8px 24px rgba(62,58,52,.10),0 24px 64px rgba(62,58,52,.16);
+  --r-sm:12px;
+  --r-md:18px;
+  --r-lg:26px;
+  --serif:"Fraunces","Noto Serif SC",serif;
+  --sans:"Noto Sans SC","Manrope",-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--sans);
+  color:var(--ink);
+  background:var(--paper);
+  -webkit-font-smoothing:antialiased;
+  line-height:1.6;
+  overflow:hidden;
+}
+/* 纸面颗粒 */
+body::after{
+  content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:.045;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+::selection{background:var(--clay-soft);color:var(--ink)}
+
+/* ---------- 布局骨架 ---------- */
+.app{display:grid;grid-template-columns:264px 1fr;height:100vh}
+
+/* ---------- 侧边栏 ---------- */
+.sidebar{
+  background:linear-gradient(180deg,#3A342D 0%,#2E2A25 100%);
+  color:#EDE6D8;
+  padding:30px 22px;
+  display:flex;flex-direction:column;gap:8px;
+  position:relative;z-index:10;
+  overflow:hidden;
+}
+.sidebar::before{
+  content:"";position:absolute;top:-120px;right:-90px;width:280px;height:280px;
+  background:radial-gradient(circle at center,rgba(181,131,110,.5),transparent 65%);
+  filter:blur(6px);
+}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:30px;position:relative}
+.brand-mark{
+  width:42px;height:42px;border-radius:12px;flex:none;
+  background:linear-gradient(135deg,var(--clay),var(--clay-deep));
+  display:grid;place-items:center;color:#fff;
+  box-shadow:0 6px 18px rgba(181,131,110,.45);
+}
+.brand-mark svg{width:22px;height:22px}
+.brand-name{font-family:var(--serif);font-size:20px;font-weight:600;letter-spacing:.5px}
+.brand-sub{font-size:10px;letter-spacing:3px;color:#A99C87;text-transform:uppercase;margin-top:-2px}
+
+.nav{display:flex;flex-direction:column;gap:3px}
+.nav-label{font-size:10px;letter-spacing:2.5px;color:#77694F;text-transform:uppercase;padding:12px 12px 6px}
+.nav-item{
+  display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;
+  color:#C9BEAA;font-size:14px;font-weight:500;cursor:pointer;transition:.2s;
+  border:1px solid transparent;
+}
+.nav-item svg{width:19px;height:19px;flex:none;opacity:.85}
+.nav-item:hover{background:rgba(255,255,255,.05);color:#F3ECDD}
+.nav-item.active{
+  background:linear-gradient(90deg,rgba(181,131,110,.22),rgba(181,131,110,.05));
+  color:#F6EEDD;border-color:rgba(181,131,110,.35);
+}
+.nav-item.active svg{color:var(--clay)}
+.nav-item .badge{margin-left:auto;background:var(--clay);color:#fff;font-size:10px;padding:1px 7px;border-radius:99px}
+
+.sidebar-foot{margin-top:auto;position:relative}
+.user-chip{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;background:rgba(255,255,255,.05);cursor:pointer;transition:.2s}
+.user-chip:hover{background:rgba(255,255,255,.09)}
+.avatar{width:38px;height:38px;border-radius:50%;flex:none;background:linear-gradient(135deg,var(--sage),#7C8A68);display:grid;place-items:center;color:#fff;font-family:var(--serif);font-size:16px;font-weight:600}
+.user-chip .name{font-size:13px;font-weight:600}
+.user-chip .meta{font-size:11px;color:#A99C87}
+
+/* ---------- 主区域 ---------- */
+.main{position:relative;overflow-y:auto;overflow-x:hidden;scroll-behavior:smooth}
+.main-inner{max-width:1120px;margin:0 auto;padding:34px 40px 96px}
+
+/* 顶部条（移动端） */
+.topbar{display:none;position:sticky;top:0;z-index:30;background:rgba(244,238,227,.86);backdrop-filter:blur(12px);border-bottom:1px solid var(--line-soft);padding:12px 18px;align-items:center;gap:12px}
+.topbar .brand-mark{width:34px;height:34px;border-radius:10px}
+.topbar .ttl{font-family:var(--serif);font-size:17px;font-weight:600}
+
+/* ---------- 视图切换 ---------- */
+.view{display:none}
+.view.active{display:block;animation:viewIn .5s cubic-bezier(.2,.7,.2,1)}
+@keyframes viewIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* ---------- 通用组件 ---------- */
+.eyebrow{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--clay);font-weight:600}
+h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spacing:.3px;line-height:1.2;margin-top:6px}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:26px;flex-wrap:wrap}
+.lead{color:var(--ink-3);font-size:14px;max-width:520px;margin-top:8px}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  border:none;cursor:pointer;font-family:var(--sans);font-size:14px;font-weight:600;
+  padding:12px 20px;border-radius:14px;transition:.2s;white-space:nowrap;line-height:1;
+}
+.btn svg{width:17px;height:17px}
+.btn-primary{background:linear-gradient(135deg,var(--clay),var(--clay-deep));color:#fff;box-shadow:0 8px 20px rgba(181,131,110,.32)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 12px 26px rgba(181,131,110,.4)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-ghost{background:transparent;color:var(--ink-2);border:1px solid var(--line)}
+.btn-ghost:hover{background:var(--card);border-color:var(--ink-3)}
+.btn-soft{background:var(--card);color:var(--ink);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+.btn-soft:hover{border-color:var(--ink-3)}
+.btn-sm{padding:9px 14px;font-size:13px;border-radius:11px}
+.btn-dark{background:var(--ink);color:#F3EBDD}
+.btn-dark:hover{background:#000}
+
+.chip{
+  display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:99px;
+  border:1px solid var(--line);background:var(--card);color:var(--ink-2);font-size:13px;font-weight:500;
+  cursor:pointer;transition:.18s;
+}
+.chip:hover{border-color:var(--ink-3);transform:translateY(-1px)}
+.chip.on{background:var(--ink);color:#F3EBDD;border-color:var(--ink)}
+.chip svg{width:14px;height:14px}
+
+.card{background:var(--card);border:1px solid var(--line-soft);border-radius:var(--r-md);box-shadow:var(--shadow-sm)}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--card-2);color:var(--ink-2);border:1px solid var(--line-soft)}
+
+/* 分段标题 */
+.section-label{display:flex;align-items:center;gap:10px;font-family:var(--serif);font-size:18px;font-weight:600;margin:34px 0 14px}
+.section-label::before{content:"";width:4px;height:18px;border-radius:2px;background:var(--clay)}
+
+/* 表单 */
+.field{margin-bottom:18px}
+.field label{display:block;font-size:13px;font-weight:600;color:var(--ink-2);margin-bottom:7px}
+.field label .req{color:var(--clay);margin-left:2px}
+.field label .opt{color:var(--ink-3);font-weight:400;font-size:12px;margin-left:6px}
+.input,.select,.textarea{
+  width:100%;font-family:var(--sans);font-size:14px;color:var(--ink);
+  background:var(--card);border:1px solid var(--line);border-radius:13px;padding:12px 14px;
+  transition:.18s;outline:none;
+}
+.input:focus,.select:focus,.textarea:focus{border-color:var(--clay);box-shadow:0 0 0 3px rgba(181,131,110,.12)}
+.textarea{resize:vertical;min-height:88px}
+.select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239B9184' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:40px}
+.hint{font-size:12px;color:var(--ink-3);margin-top:6px}
+
+/* 色板 */
+.color-row{display:flex;flex-wrap:wrap;gap:9px}
+.color-swatch{width:34px;height:34px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:.15s;position:relative}
+.color-swatch:hover{transform:scale(1.08)}
+.color-swatch.on{border-color:var(--ink);box-shadow:0 0 0 3px rgba(255,255,255,.5) inset}
+
+/* ============ 视图：登录 ============ */
+.auth-wrap{min-height:100%;display:grid;place-items:center;padding:30px}
+.auth-card{width:100%;max-width:420px;background:var(--card);border:1px solid var(--line-soft);border-radius:28px;box-shadow:var(--shadow-lg);padding:40px 38px;position:relative;overflow:hidden}
+.auth-card::before{content:"";position:absolute;top:-60px;right:-60px;width:180px;height:180px;background:radial-gradient(circle,var(--clay-soft),transparent 70%)}
+.auth-logo{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,var(--clay),var(--clay-deep));display:grid;place-items:center;color:#fff;margin-bottom:20px;box-shadow:0 10px 24px rgba(181,131,110,.4)}
+.auth-logo svg{width:28px;height:28px}
+.auth-title{font-family:var(--serif);font-size:28px;font-weight:600}
+.auth-sub{color:var(--ink-3);font-size:14px;margin:6px 0 26px}
+.auth-toggle{display:flex;background:var(--paper-2);border-radius:12px;padding:4px;margin-bottom:24px}
+.auth-toggle button{flex:1;border:none;background:none;padding:10px;font-size:14px;font-weight:600;color:var(--ink-3);border-radius:9px;cursor:pointer;transition:.2s}
+.auth-toggle button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow-sm)}
+
+/* ============ 视图：首次资料 ============ */
+.profile-card{max-width:560px;margin:0 auto;background:var(--card);border:1px solid var(--line-soft);border-radius:28px;box-shadow:var(--shadow-lg);padding:38px}
+.seg{display:flex;gap:10px}
+.seg-option{flex:1;text-align:center;padding:14px;border-radius:13px;border:1px solid var(--line);cursor:pointer;font-size:15px;font-weight:600;color:var(--ink-2);transition:.18s;background:var(--card)}
+.seg-option:hover{border-color:var(--ink-3)}
+.seg-option.on{background:var(--ink);color:#F3EBDD;border-color:var(--ink)}
+.style-grid{display:flex;flex-wrap:wrap;gap:9px}
+
+/* ============ 视图：首页 ============ */
+.weather{position:relative;border-radius:var(--r-lg);padding:26px 28px;color:#F5EEDD;overflow:hidden;background:linear-gradient(120deg,#3A342D 0%,#4A4138 55%,#5A4F42 100%)}
+.weather::after{content:"";position:absolute;right:-40px;top:-40px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(192,162,114,.3),transparent 70%)}
+.weather-top{display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1;flex-wrap:wrap;gap:14px}
+.weather-city{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;opacity:.92}
+.weather-city svg{width:16px;height:16px}
+.weather-cond{font-family:var(--serif);font-size:17px;margin-top:4px;opacity:.95}
+.weather-temp{font-family:var(--serif);font-size:64px;line-height:1;font-weight:600;position:relative;z-index:1}
+.weather-temp sup{font-size:26px;font-weight:500;opacity:.7}
+.weather-stats{display:flex;gap:18px;position:relative;z-index:1;margin-top:16px;flex-wrap:wrap}
+.wstat{display:flex;align-items:center;gap:7px;font-size:13px;opacity:.85}
+.wstat svg{width:15px;height:15px;opacity:.8}
+
+.outfit-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.outfit-card{background:var(--card);border:1px solid var(--line-soft);border-radius:var(--r-md);box-shadow:var(--shadow-sm);padding:20px;display:flex;flex-direction:column;gap:14px;transition:.22s;position:relative}
+.outfit-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md)}
+.outfit-rank{font-family:var(--serif);font-size:13px;color:var(--clay);font-weight:600;letter-spacing:1px}
+.outfit-name{font-family:var(--serif);font-size:19px;font-weight:600}
+.outfit-items{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;min-height:64px}
+.gitem{text-align:center;width:56px}
+.gitem .thumb{width:52px;height:52px;margin:0 auto;border-radius:12px;position:relative;overflow:hidden;border:1px solid rgba(0,0,0,.06)}
+.gitem .thumb .fab{position:absolute;inset:0;background-size:6px 6px;opacity:.5;mix-blend-mode:overlay}
+.gitem .cat{font-size:10px;color:var(--ink-3);margin-top:4px;line-height:1.2}
+.outfit-reason{font-size:13px;color:var(--ink-2);line-height:1.55;background:var(--card-2);border-radius:11px;padding:10px 12px}
+.outfit-notes{font-size:12px;color:var(--warn);display:flex;align-items:center;gap:6px}
+.outfit-notes svg{width:14px;height:14px;flex:none}
+.outfit-actions{display:flex;gap:8px;margin-top:auto}
+.rate-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-size:12px;font-weight:600;color:var(--ink-2);cursor:pointer;transition:.16s}
+.rate-btn svg{width:14px;height:14px}
+.rate-btn:hover{border-color:var(--ink-3)}
+.rate-btn.on-like{background:#EAF0E3;color:var(--ok);border-color:#C8D5B8}
+.rate-btn.on-mid{background:#F6ECDA;color:var(--warn);border-color:#E3CD9F}
+.rate-btn.on-bad{background:#F6E2DC;color:var(--bad);border-color:#E4BCAF}
+
+.entry-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.entry-card{display:flex;align-items:center;gap:14px;padding:20px;cursor:pointer;transition:.2s}
+.entry-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md)}
+.entry-ico{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;flex:none}
+.entry-ico svg{width:22px;height:22px}
+.entry-txt .t{font-family:var(--serif);font-size:16px;font-weight:600}
+.entry-txt .d{font-size:12px;color:var(--ink-3)}
+
+/* ============ 视图：衣橱 ============ */
+.cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.cat-card{cursor:pointer;padding:18px;transition:.2s;position:relative;overflow:hidden}
+.cat-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md)}
+.cat-card.on{background:var(--ink);color:#F3EBDD;border-color:var(--ink)}
+.cat-card .c-ico{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;margin-bottom:12px}
+.cat-card .c-ico svg{width:20px;height:20px}
+.cat-card .c-name{font-family:var(--serif);font-size:16px;font-weight:600}
+.cat-card .c-count{font-size:12px;color:var(--ink-3)}
+.cat-card.on .c-count{color:#B7AC9B}
+
+.filter-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:22px 0 16px}
+.filter-label{font-size:12px;font-weight:600;color:var(--ink-3);letter-spacing:1px}
+
+.garment-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.garment-card{overflow:hidden;display:flex;flex-direction:column}
+.garment-img{height:150px;position:relative;overflow:hidden}
+.garment-img .swatch{position:absolute;inset:0}
+.garment-img .fab{position:absolute;inset:0;background-size:7px 7px;opacity:.45;mix-blend-mode:overlay}
+.garment-img .g-cat{position:absolute;top:12px;left:12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;background:rgba(62,58,52,.55);color:#F3EBDD;padding:3px 8px;border-radius:99px;backdrop-filter:blur(4px)}
+.garment-status{position:absolute;top:12px;right:12px;font-size:10px;font-weight:600;padding:3px 9px;border-radius:99px}
+.garment-status.ok{background:#EAF0E3;color:var(--ok)}
+.garment-status.wash{background:#F6ECDA;color:var(--warn)}
+.garment-status.off{background:#F6E2DC;color:var(--bad)}
+.garment-body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:8px;flex:1}
+.garment-name{font-family:var(--serif);font-size:16px;font-weight:600;line-height:1.3}
+.garment-meta{display:flex;flex-wrap:wrap;gap:5px}
+.garment-foot{display:flex;gap:6px;margin-top:auto;padding-top:6px;border-top:1px dashed var(--line-soft)}
+.gfoot-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:7px;border-radius:9px;border:1px solid var(--line);background:var(--card);font-size:12px;font-weight:600;color:var(--ink-2);cursor:pointer;transition:.15s}
+.gfoot-btn svg{width:14px;height:14px}
+.gfoot-btn:hover{border-color:var(--ink-3)}
+.gfoot-btn.danger:hover{background:#F6E2DC;color:var(--bad);border-color:#E4BCAF}
+
+/* ============ 视图：AI 对话 ============ */
+.chat-shell{display:flex;flex-direction:column;height:calc(100vh - 160px);min-height:520px}
+.chat-scroll{flex:1;overflow-y:auto;padding:6px 4px 16px;display:flex;flex-direction:column;gap:18px}
+.msg{display:flex;gap:12px;max-width:86%}
+.msg.user{align-self:flex-end;flex-direction:row-reverse}
+.msg-ava{width:36px;height:36px;border-radius:12px;flex:none;display:grid;place-items:center;font-family:var(--serif);font-weight:600}
+.msg.ai .msg-ava{background:linear-gradient(135deg,var(--clay),var(--clay-deep));color:#fff}
+.msg.user .msg-ava{background:var(--sage-soft);color:#3E4634}
+.msg-bubble{background:var(--card);border:1px solid var(--line-soft);border-radius:16px;padding:13px 16px;font-size:14px;line-height:1.65;box-shadow:var(--shadow-sm);color:var(--ink)}
+.msg.user .msg-bubble{background:var(--ink);color:#F3EBDD;border-color:var(--ink)}
+.chat-outfit{margin-top:12px;display:grid;gap:10px}
+.chat-outfit-card{background:var(--card-2);border:1px solid var(--line-soft);border-radius:14px;padding:14px}
+
+.quick-row{display:flex;gap:8px;flex-wrap:wrap;padding:12px 0}
+.chat-input-bar{display:flex;gap:10px;align-items:flex-end;padding-top:12px;border-top:1px solid var(--line-soft)}
+.chat-input-bar .input{flex:1;border-radius:16px;padding:14px 16px;resize:none;min-height:52px}
+.send-btn{width:52px;height:52px;border-radius:16px;border:none;background:linear-gradient(135deg,var(--clay),var(--clay-deep));color:#fff;cursor:pointer;display:grid;place-items:center;box-shadow:0 8px 18px rgba(181,131,110,.35);transition:.2s;flex:none}
+.send-btn:hover{transform:translateY(-1px)}
+.send-btn svg{width:20px;height:20px}
+
+/* ============ 视图：购前评估 ============ */
+.eval-layout{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+.upload-box{border:2px dashed var(--line);border-radius:18px;padding:30px;text-align:center;cursor:pointer;transition:.2s;background:var(--card)}
+.upload-box:hover{border-color:var(--clay);background:var(--card-2)}
+.upload-box .up-ico{width:52px;height:52px;border-radius:16px;background:var(--clay-soft);color:var(--clay-deep);display:grid;place-items:center;margin:0 auto 12px}
+.upload-box .up-ico svg{width:24px;height:24px}
+.upload-box.preview{padding:10px}
+.upload-box.preview img{width:100%;height:190px;object-fit:cover;border-radius:12px}
+.result-block{background:var(--card);border:1px solid var(--line-soft);border-radius:var(--r-md);padding:22px}
+.match-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px dashed var(--line-soft)}
+.match-row:last-child{border-bottom:none}
+.match-pct{font-family:var(--serif);font-size:18px;font-weight:600;color:var(--clay);width:46px;flex:none}
+
+/* ============ 视图：历史 ============ */
+.hist-tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.hist-list{display:flex;flex-direction:column;gap:12px}
+.hist-item{display:flex;align-items:center;gap:16px;padding:16px 18px}
+.hist-ico{width:42px;height:42px;border-radius:12px;flex:none;display:grid;place-items:center}
+.hist-ico svg{width:20px;height:20px}
+.hist-body{flex:1;min-width:0}
+.hist-title{font-family:var(--serif);font-size:15px;font-weight:600}
+.hist-meta{font-size:12px;color:var(--ink-3);margin-top:2px}
+
+/* ============ 视图：我的 ============ */
+.me-head{display:flex;gap:20px;align-items:center;padding:24px;margin-bottom:20px}
+.me-avatar{width:72px;height:72px;border-radius:22px;background:linear-gradient(135deg,var(--sage),#7C8A68);display:grid;place-items:center;color:#fff;font-family:var(--serif);font-size:30px;font-weight:600}
+.pref-card{padding:20px}
+.pref-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px dashed var(--line-soft)}
+.pref-row:last-child{border-bottom:none}
+
+/* ---------- 弹窗 ---------- */
+.modal-back{position:fixed;inset:0;background:rgba(30,24,16,.45);backdrop-filter:blur(3px);z-index:100;display:none;place-items:center;padding:20px}
+.modal-back.open{display:grid;animation:fadeIn .2s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{width:100%;max-width:520px;max-height:88vh;overflow-y:auto;background:var(--card);border-radius:24px;box-shadow:var(--shadow-lg);padding:28px;animation:pop .3s cubic-bezier(.2,.7,.2,1)}
+@keyframes pop{from{opacity:0;transform:translateY(20px) scale(.98)}to{opacity:1;transform:none}}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.modal-title{font-family:var(--serif);font-size:22px;font-weight:600}
+.modal-close{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:var(--card);cursor:pointer;display:grid;place-items:center;transition:.15s}
+.modal-close:hover{background:var(--paper-2)}
+.modal-close svg{width:16px;height:16px}
+
+/* ---------- 提示 toast ---------- */
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#F3EBDD;padding:12px 22px;border-radius:99px;font-size:14px;box-shadow:var(--shadow-lg);z-index:200;opacity:0;pointer-events:none;transition:.3s}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---------- 底部导航（移动端） ---------- */
+.bottomnav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:40;background:rgba(251,247,238,.92);backdrop-filter:blur(14px);border-top:1px solid var(--line-soft);padding:6px 8px calc(6px + env(safe-area-inset-bottom))}
+.bottomnav .bn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;border-radius:10px;cursor:pointer;color:var(--ink-3);font-size:10px;font-weight:600;transition:.15s}
+.bottomnav .bn svg{width:21px;height:21px}
+.bottomnav .bn.active{color:var(--clay)}
+
+/* 登录 / 首次资料页隐藏外壳 */
+body.gate .sidebar, body.gate .bottomnav{display:none}
+body.gate .app{grid-template-columns:1fr}
+body.gate .topbar{display:none}
+
+/* ---------- 响应式 ---------- */
+@media (max-width:1040px){
+  .outfit-grid,.entry-grid,.garment-grid,.cat-grid{grid-template-columns:repeat(2,1fr)}
+  .eval-layout{grid-template-columns:1fr}
+}
+@media (max-width:900px){
+  .app{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .topbar{display:flex}
+  .bottomnav{display:flex}
+  .main-inner{padding:18px 18px 110px}
+  h1.page-title{font-size:27px}
+  .msg{max-width:96%}
+}
+@media (max-width:560px){
+  .outfit-grid,.entry-grid,.garment-grid,.cat-grid{grid-template-columns:1fr}
+}
+
+/* 滚动条 */
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--paper-3);border-radius:99px;border:2px solid var(--paper)}
+::-webkit-scrollbar-thumb:hover{background:var(--ink-3)}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============ 侧边栏 ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c-1 2-3 2.6-3 5a3 3 0 0 0 6 0c0-2.4-2-3-3-5Z"/><path d="M9 8v4l-2.5 8a2 2 0 0 0 1.9 2.6h7.2a2 2 0 0 0 1.9-2.6L15 12V8"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">衣橱 Agent</div>
+        <div class="brand-sub">Smart Wardrobe</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-label">主菜单</div>
+      <div class="nav-item active" data-view="home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/></svg>
+        今日推荐
+      </div>
+      <div class="nav-item" data-view="wardrobe">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c-1 2-3 2.6-3 5a3 3 0 0 0 6 0c0-2.4-2-3-3-5Z"/><path d="M9 8v4l-2.5 8a2 2 0 0 0 1.9 2.6h7.2a2 2 0 0 0 1.9-2.6L15 12V8"/></svg>
+        电子衣橱
+        <span class="badge" id="wardrobe-count">16</span>
+      </div>
+      <div class="nav-item" data-view="chat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 0 1 4 17.2c-.9.4-1.8.5-3 .5H4l1.5-3A9 9 0 0 1 12 3Z"/><path d="M8 10h8M8 14h5"/></svg>
+        AI 对话
+      </div>
+      <div class="nav-item" data-view="eval">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 7v6c0 5 4 8 9 9 5-1 9-4 9-9V7l-9-4Z"/><path d="M9 12l2 2 4-4"/></svg>
+        购前评估
+      </div>
+      <div class="nav-item" data-view="history">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        历史记录
+      </div>
+      <div class="nav-label">账户</div>
+      <div class="nav-item" data-view="me">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg>
+        个人资料
+      </div>
+    </nav>
+
+    <div class="sidebar-foot">
+      <div class="user-chip" onclick="showView('me')">
+        <div class="avatar">林</div>
+        <div>
+          <div class="name">林晓</div>
+          <div class="meta">上海 · 通勤 · 简约</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ 主区域 ============ -->
+  <main class="main" id="main">
+    <div class="topbar">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c-1 2-3 2.6-3 5a3 3 0 0 0 6 0c0-2.4-2-3-3-5Z"/><path d="M9 8v4l-2.5 8a2 2 0 0 0 1.9 2.6h7.2a2 2 0 0 0 1.9-2.6L15 12V8"/></svg>
+      </div>
+      <div class="ttl">衣橱 Agent</div>
+    </div>
+    <div class="main-inner">
+
+      <!-- ========== 登录 ========== -->
+      <section class="view active" id="view-auth">
+        <div class="auth-wrap">
+          <div class="auth-card">
+            <div class="auth-logo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c-1 2-3 2.6-3 5a3 3 0 0 0 6 0c0-2.4-2-3-3-5Z"/><path d="M9 8v4l-2.5 8a2 2 0 0 0 1.9 2.6h7.2a2 2 0 0 0 1.9-2.6L15 12V8"/></svg>
+            </div>
+            <div class="auth-title">衣橱 Agent</div>
+            <div class="auth-sub">根据你的衣橱、天气与场景，生成真正能穿的穿搭建议。</div>
+            <div class="auth-toggle">
+              <button class="on" id="tab-login" onclick="authTab('login')">登录</button>
+              <button id="tab-register" onclick="authTab('register')">注册</button>
+            </div>
+            <div class="field">
+              <label>手机号 / 邮箱</label>
+              <input class="input" placeholder="请输入手机号或邮箱" />
+            </div>
+            <div class="field">
+              <label>密码</label>
+              <input class="input" type="password" placeholder="请输入密码" />
+            </div>
+            <button class="btn btn-primary" style="width:100%;padding:14px" onclick="enterApp()">
+              进入衣橱
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 首次资料 ========== -->
+      <section class="view" id="view-setup">
+        <div style="padding:24px 0 40px">
+          <div class="eyebrow">欢迎使用</div>
+          <h1 class="page-title" style="margin-top:4px">先了解一下你</h1>
+          <p class="lead">只需两步，我们就能为你生成贴合天气与场合的穿搭建议。性别与常用城市为必填，其余可稍后补充。</p>
+        </div>
+        <div class="profile-card">
+          <div class="field">
+            <label>性别 <span class="req">*</span></label>
+            <div class="seg" id="gender-seg">
+              <div class="seg-option" data-v="male" onclick="pickSeg('gender','male')">男</div>
+              <div class="seg-option" data-v="female" onclick="pickSeg('gender','female')">女</div>
+            </div>
+          </div>
+          <div class="field">
+            <label>常用城市 <span class="req">*</span></label>
+            <select class="select" id="setup-city" onchange="checkSetupReady()">
+              <option value="">请选择城市</option>
+              <option>上海</option><option>北京</option><option>广州</option><option>深圳</option>
+              <option>杭州</option><option>成都</option><option>武汉</option><option>南京</option><option>西安</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>身高 <span class="opt">选填 · 辅助版型与比例建议</span></label>
+            <input class="input" id="setup-height" placeholder="例如 168 cm" />
+          </div>
+          <div class="field">
+            <label>体型 <span class="opt">选填</span></label>
+            <div class="seg" id="body-seg">
+              <div class="seg-option" data-v="slim" onclick="pickSeg('body','slim')">偏瘦</div>
+              <div class="seg-option" data-v="standard" onclick="pickSeg('body','standard')">标准</div>
+              <div class="seg-option" data-v="curvy" onclick="pickSeg('body','curvy')">偏丰</div>
+            </div>
+          </div>
+          <div class="field">
+            <label>常用风格 <span class="opt">选填 · 可多选</span></label>
+            <div class="style-grid" id="style-grid">
+              <div class="chip" data-v="简约" onclick="toggleStyle(this)">简约</div>
+              <div class="chip" data-v="休闲" onclick="toggleStyle(this)">休闲</div>
+              <div class="chip" data-v="通勤" onclick="toggleStyle(this)">通勤</div>
+              <div class="chip" data-v="甜美" onclick="toggleStyle(this)">甜美</div>
+              <div class="chip" data-v="街头" onclick="toggleStyle(this)">街头</div>
+              <div class="chip" data-v="正式" onclick="toggleStyle(this)">正式</div>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="setup-submit" style="width:100%;padding:14px;margin-top:6px" disabled onclick="finishSetup()">
+            完成，开始使用
+          </button>
+        </div>
+      </section>
+
+      <!-- ========== 首页 ========== -->
+      <section class="view" id="view-home">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">Good morning · 10月20日 周一</div>
+            <h1 class="page-title">今日穿搭</h1>
+            <p class="lead">根据你的衣橱、天气与场合，为你准备了今天的搭配方案。</p>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-soft" onclick="toast('已刷新今日推荐')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.3"/><path d="M21 3v6h-6"/></svg>
+              刷新推荐
+            </button>
+            <button class="btn btn-ghost" onclick="shuffleOutfits()">换一批</button>
+          </div>
+        </div>
+
+        <!-- 天气卡片 -->
+        <div class="weather">
+          <div class="weather-top">
+            <div>
+              <div class="weather-city">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                <span id="weather-city">上海</span>
+              </div>
+              <div class="weather-cond" id="weather-cond">多云 · 全天有微风</div>
+            </div>
+            <div class="weather-temp" id="weather-temp">22<sup>°C</sup></div>
+          </div>
+          <div class="weather-stats">
+            <div class="wstat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6M12 22v-4M4 12H2M22 12h-2M5 5l1.5 1.5M19 19l-1.5-1.5M19 5l-1.5 1.5M5 19l1.5-1.5"/><circle cx="12" cy="12" r="4"/></svg>最高 26° · 最低 18°</div>
+            <div class="wstat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4 12H2M22 12h-2M6 6l1.5 1.5M17.5 17.5 19 19M19 6l-1.5 1.5M6.5 17.5 5 19"/></svg>降雨 20%</div>
+            <div class="wstat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h3l2-6 4 14 2.5-8H21"/></svg>湿度 65%</div>
+            <div class="wstat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M4 6c4-2 6-2 8 0s4 2 8 0"/></svg>东南风 3 级</div>
+          </div>
+        </div>
+
+        <!-- 推荐方案 -->
+        <div class="section-label" id="outfit-label">为你搭配 · 3 套方案</div>
+        <div class="outfit-grid" id="outfit-grid"></div>
+
+        <!-- 功能入口 -->
+        <div class="section-label">更多功能</div>
+        <div class="entry-grid">
+          <div class="card entry-card" onclick="showView('chat')">
+            <div class="entry-ico" style="background:var(--clay-soft);color:var(--clay-deep)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 0 1 4 17.2c-.9.4-1.8.5-3 .5H4l1.5-3A9 9 0 0 1 12 3Z"/><path d="M8 10h8M8 14h5"/></svg>
+            </div>
+            <div class="entry-txt"><div class="t">AI 对话穿搭</div><div class="d">描述场景，随时调整方案</div></div>
+          </div>
+          <div class="card entry-card" onclick="showView('wardrobe')">
+            <div class="entry-ico" style="background:var(--sage-soft);color:#55624A">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c-1 2-3 2.6-3 5a3 3 0 0 0 6 0c0-2.4-2-3-3-5Z"/><path d="M9 8v4l-2.5 8a2 2 0 0 0 1.9 2.6h7.2a2 2 0 0 0 1.9-2.6L15 12V8"/></svg>
+            </div>
+            <div class="entry-txt"><div class="t">电子衣橱</div><div class="d">管理你的每一件衣物</div></div>
+          </div>
+          <div class="card entry-card" onclick="showView('eval')">
+            <div class="entry-ico" style="background:#F0E6D2;color:var(--gold)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 7v6c0 5 4 8 9 9 5-1 9-4 9-9V7l-9-4Z"/><path d="M9 12l2 2 4-4"/></svg>
+            </div>
+            <div class="entry-txt"><div class="t">购前评估</div><div class="d">看看新品是否值得入手</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 电子衣橱 ========== -->
+      <section class="view" id="view-wardrobe">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">Wardrobe</div>
+            <h1 class="page-title">电子衣橱</h1>
+            <p class="lead">按品类浏览、筛选与管理你的衣物。清洗中或暂不可穿的衣物不会参与推荐。</p>
+          </div>
+          <button class="btn btn-primary" onclick="openGarmentModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            新增衣物
+          </button>
+        </div>
+
+        <div class="cat-grid" id="cat-grid"></div>
+
+        <div class="filter-bar">
+          <span class="filter-label">筛选</span>
+          <select class="select" id="f-color" style="width:auto" onchange="renderGarments()">
+            <option value="">全部颜色</option>
+            <option>黑</option><option>白</option><option>灰</option><option>米白</option>
+            <option>棕</option><option>蓝</option><option>牛仔蓝</option><option>绿</option><option>红</option><option>粉</option>
+          </select>
+          <select class="select" id="f-season" style="width:auto" onchange="renderGarments()">
+            <option value="">全部季节</option>
+            <option>春夏</option><option>秋冬</option><option>四季</option>
+          </select>
+          <select class="select" id="f-occasion" style="width:auto" onchange="renderGarments()">
+            <option value="">全部场合</option>
+            <option>日常</option><option>通勤</option><option>约会</option><option>运动</option><option>正式</option>
+          </select>
+          <div style="margin-left:auto;font-size:13px;color:var(--ink-3)" id="garment-result-count"></div>
+        </div>
+
+        <div class="garment-grid" id="garment-grid"></div>
+      </section>
+
+      <!-- ========== AI 对话 ========== -->
+      <section class="view" id="view-chat">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">AI Stylist</div>
+            <h1 class="page-title">对话穿搭</h1>
+            <p class="lead">告诉 AI 你的场景与偏好，它会从你的真实衣橱中搭配，并支持多轮调整。</p>
+          </div>
+          <button class="btn btn-ghost" onclick="resetChat()">新对话</button>
+        </div>
+        <div class="card chat-shell" style="padding:20px">
+          <div class="chat-scroll" id="chat-scroll"></div>
+          <div class="quick-row" id="quick-row">
+            <div class="chip" onclick="sendQuick('换成裙子')">换成裙子</div>
+            <div class="chip" onclick="sendQuick('不要黑色')">不要黑色</div>
+            <div class="chip" onclick="sendQuick('更休闲一点')">更休闲</div>
+            <div class="chip" onclick="sendQuick('今晚约会，温柔一点')">约会 · 温柔</div>
+          </div>
+          <div class="chat-input-bar">
+            <textarea class="input" id="chat-input" rows="1" placeholder="描述你的场景、风格或限制，例如：今晚约会，想温柔一点，不要黑色……" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"></textarea>
+            <button class="send-btn" onclick="sendChat()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 18 9-18 9 4-9-4-9Z"/></svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 购前评估 ========== -->
+      <section class="view" id="view-eval">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">Purchase Check</div>
+            <h1 class="page-title">购前评估</h1>
+            <p class="lead">上传新品参考图并填写属性，对照现有衣橱，看看它是否值得入手、能和哪些衣物搭配。</p>
+          </div>
+          <button class="btn btn-ghost" onclick="showView('history')">历史评估</button>
+        </div>
+
+        <div class="eval-layout">
+          <div>
+            <div class="section-label" style="margin-top:0">新品信息</div>
+            <div class="upload-box" id="upload-box" onclick="fakeUpload()">
+              <div id="upload-empty">
+                <div class="up-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M6 10l6-6 6 6"/><path d="M4 20h16"/></svg></div>
+                <div style="font-size:14px;font-weight:600">上传新品参考图</div>
+                <div class="hint" style="margin-top:4px">图片仅用于预览，不会做图像识别</div>
+              </div>
+              <div id="upload-preview" style="display:none" class="preview">
+                <div style="height:190px;border-radius:12px;background:linear-gradient(135deg,#E7D3C7,#C0A272);display:grid;place-items:center;font-family:var(--serif);font-size:15px;color:#6b5540">新品参考图</div>
+              </div>
+            </div>
+            <div class="field" style="margin-top:16px">
+              <label>名称</label>
+              <input class="input" id="eval-name" placeholder="例如：燕麦色针织开衫" />
+            </div>
+            <div class="field">
+              <label>品类 <span class="req">*</span></label>
+              <select class="select" id="eval-cat"><option value="">请选择</option><option>上衣</option><option>外套</option><option>裤子</option><option>裙子</option><option>连衣裙</option><option>鞋子</option></select>
+            </div>
+            <div class="field">
+              <label>主颜色</label>
+              <div class="color-row" id="eval-color"></div>
+            </div>
+            <div class="field">
+              <label>季节 / 场合</label>
+              <div style="display:flex;gap:10px">
+                <select class="select" id="eval-season"><option>四季</option><option>春夏</option><option>秋冬</option></select>
+                <select class="select" id="eval-occasion"><option>日常</option><option>通勤</option><option>约会</option><option>正式</option></select>
+              </div>
+            </div>
+            <button class="btn btn-primary" style="width:100%" onclick="runEval()">开始评估</button>
+          </div>
+
+          <div>
+            <div class="section-label" style="margin-top:0">评估结果</div>
+            <div class="result-block" id="eval-result">
+              <div style="text-align:center;padding:34px 10px;color:var(--ink-3)">
+                <div style="font-size:34px;margin-bottom:10px">🧥</div>
+                填写新品信息后，这里会展示可搭配的衣物、相似单品与判断依据。
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 历史记录 ========== -->
+      <section class="view" id="view-history">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">History</div>
+            <h1 class="page-title">历史记录</h1>
+            <p class="lead">回看推荐、对话与购前评估。推荐评价与穿着反馈分开记录。</p>
+          </div>
+        </div>
+        <div class="hist-tabs">
+          <div class="chip on" data-tab="rec" onclick="histTab('rec')">推荐方案</div>
+          <div class="chip" data-tab="chat" onclick="histTab('chat')">对话记录</div>
+          <div class="chip" data-tab="eval" onclick="histTab('eval')">购前评估</div>
+        </div>
+        <div class="hist-list" id="hist-list"></div>
+      </section>
+
+      <!-- ========== 个人资料 ========== -->
+      <section class="view" id="view-me">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">Profile</div>
+            <h1 class="page-title">个人资料与偏好</h1>
+          </div>
+        </div>
+
+        <div class="card me-head">
+          <div class="me-avatar">林</div>
+          <div style="flex:1">
+            <div style="font-family:var(--serif);font-size:22px;font-weight:600">林晓</div>
+            <div style="font-size:13px;color:var(--ink-3);margin-top:2px">上海 · 女 · 168 cm · 标准</div>
+            <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+              <span class="tag">通勤</span><span class="tag">简约</span><span class="tag">休闲</span>
+            </div>
+          </div>
+          <button class="btn btn-soft" onclick="toast('资料编辑已打开（演示）')">编辑资料</button>
+        </div>
+
+        <div class="section-label">长期偏好</div>
+        <div class="card pref-card">
+          <div class="pref-row">
+            <div><div style="font-weight:600;font-size:14px">颜色偏好</div><div class="hint" style="margin-top:2px">由你的评价汇总</div></div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+              <span class="tag">偏暗色</span><span class="tag">米白</span><span class="tag">牛仔蓝</span>
+            </div>
+          </div>
+          <div class="pref-row">
+            <div><div style="font-weight:600;font-size:14px">风格偏好</div><div class="hint" style="margin-top:2px">通勤 · 简约 · 休闲</div></div>
+            <button class="btn btn-ghost btn-sm" onclick="toast('已重置长期偏好')">重置偏好</button>
+          </div>
+          <div class="pref-row">
+            <div><div style="font-weight:600;font-size:14px">反馈记录</div><div class="hint" style="margin-top:2px">共 12 条推荐评价 · 3 条穿着反馈</div></div>
+            <button class="btn btn-ghost btn-sm" onclick="showView('history')">查看</button>
+          </div>
+        </div>
+
+        <div class="section-label">设置</div>
+        <div class="card pref-card">
+          <div class="pref-row">
+            <div><div style="font-weight:600;font-size:14px">天气来源</div><div class="hint" style="margin-top:2px">使用常用城市当天预报</div></div>
+            <span class="tag">已开启</span>
+          </div>
+          <div class="pref-row">
+            <div><div style="font-weight:600;font-size:14px">数据与隐私</div><div class="hint" style="margin-top:2px">删除账户与历史数据</div></div>
+            <button class="btn btn-ghost btn-sm" style="color:var(--bad)" onclick="toast('演示环境：不执行真实删除')">删除数据</button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- 移动端底部导航 -->
+  <nav class="bottomnav">
+    <div class="bn active" data-view="home" onclick="showView('home')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>今日
+    </div>
+    <div class="bn" data-view="wardrobe" onclick="showView('wardrobe')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c-1 2-3 2.6-3 5a3 3 0 0 0 6 0c0-2.4-2-3-3-5Z"/><path d="M9 8v4l-2.5 8a2 2 0 0 0 1.9 2.6h7.2a2 2 0 0 0 1.9-2.6L15 12V8"/></svg>衣橱
+    </div>
+    <div class="bn" data-view="chat" onclick="showView('chat')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 0 1 4 17.2c-.9.4-1.8.5-3 .5H4l1.5-3A9 9 0 0 1 12 3Z"/><path d="M8 10h8M8 14h5"/></svg>对话
+    </div>
+    <div class="bn" data-view="eval" onclick="showView('eval')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 7v6c0 5 4 8 9 9 5-1 9-4 9-9V7l-9-4Z"/><path d="M9 12l2 2 4-4"/></svg>评估
+    </div>
+    <div class="bn" data-view="me" onclick="showView('me')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg>我的
+    </div>
+  </nav>
+</div>
+
+<!-- ============ 衣物弹窗 ============ -->
+<div class="modal-back" id="garment-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title" id="gmodal-title">新增衣物</div>
+      <button class="modal-close" onclick="closeGarmentModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="field">
+      <label>名称</label>
+      <input class="input" id="g-name" placeholder="例如：白色基础 T 恤" />
+    </div>
+    <div class="field">
+      <label>品类 <span class="req">*</span></label>
+      <select class="select" id="g-cat">
+        <option value="">请选择</option>
+        <option>T恤</option><option>衬衫</option><option>裤子</option><option>裙子</option>
+        <option>风衣</option><option>毛衣</option><option>鞋子</option><option>配饰</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>主颜色 <span class="req">*</span></label>
+      <div class="color-row" id="g-color"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="field">
+        <label>季节 / 厚薄</label>
+        <select class="select" id="g-season"><option>四季</option><option>春夏</option><option>秋冬</option></select>
+      </div>
+      <div class="field">
+        <label>版型</label>
+        <select class="select" id="g-fit"><option>常规</option><option>修身</option><option>宽松</option><option>廓形</option></select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="field">
+        <label>面料</label>
+        <input class="input" id="g-fabric" placeholder="例如：纯棉 / 羊毛" />
+      </div>
+      <div class="field">
+        <label>适用场合</label>
+        <select class="select" id="g-occasion"><option>日常</option><option>通勤</option><option>约会</option><option>运动</option><option>正式</option></select>
+      </div>
+    </div>
+    <div class="field">
+      <label>状态</label>
+      <div class="seg" id="g-status">
+        <div class="seg-option on" data-v="ok" onclick="pickSeg('gstatus','ok')">可穿</div>
+        <div class="seg-option" data-v="wash" onclick="pickSeg('gstatus','wash')">清洗中</div>
+        <div class="seg-option" data-v="off" onclick="pickSeg('gstatus','off')">暂不可穿</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>备注</label>
+      <textarea class="textarea" id="g-notes" placeholder="可选"></textarea>
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="saveGarment()">保存</button>
+  </div>
+</div>
+
+<!-- 穿着反馈弹窗 -->
+<div class="modal-back" id="feedback-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">穿着反馈</div>
+      <button class="modal-close" onclick="closeFeedback()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="field">
+      <label>整体感受</label>
+      <div class="seg" id="fb-rate">
+        <div class="seg-option" data-v="舒适" onclick="pickSeg('fb','舒适')">舒适</div>
+        <div class="seg-option" data-v="一般" onclick="pickSeg('fb','一般')">一般</div>
+        <div class="seg-option" data-v="不合适" onclick="pickSeg('fb','不合适')">不合适</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>原因标签 <span class="opt">可多选</span></label>
+      <div class="style-grid" id="fb-reasons">
+        <div class="chip" data-v="颜色不喜欢" onclick="toggleStyle(this)">颜色不喜欢</div>
+        <div class="chip" data-v="版型不合适" onclick="toggleStyle(this)">版型不合适</div>
+        <div class="chip" data-v="太冷" onclick="toggleStyle(this)">太冷</div>
+        <div class="chip" data-v="不适合场合" onclick="toggleStyle(this)">不适合场合</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>补充说明</label>
+      <textarea class="textarea" id="fb-text" placeholder="可选"></textarea>
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="submitFeedback()">提交反馈</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   数据
+   ============================================================ */
+const COLOR_MAP = {
+  '黑':'#3E3A34','白':'#F4F1EA','灰':'#A9A39A','米白':'#E8E0D2','棕':'#8A6F5A',
+  '蓝':'#7C8FA0','牛仔蓝':'#6B8292','绿':'#9CAF88','红':'#B5705C','粉':'#D4B5B0','黄':'#C9B37A'
+};
+const CATEGORIES = ['T恤','衬衫','裤子','裙子','风衣','毛衣','鞋子','配饰'];
+const CAT_ICON = {
+  'T恤':'M12 3c-1 2-3 2.6-3 5a3 3 0 0 0 6 0c0-2.4-2-3-3-5Z',
+  '衬衫':'M6 4h12l-1 4H7L6 4Z M7 8v3l-1 9h12l-1-9V8',
+  '裤子':'M7 3h10l-1 3v3L9 9V6L8 3Z',
+  '裙子':'M7 3h10l-2 6 3 12H6l3-12-2-6Z',
+  '风衣':'M5 5h14l-1 3-1 13H7L6 8 5 5Z',
+  '毛衣':'M7 4l5 3 5-3 2 4-2 13H8L6 8l1-4Z',
+  '鞋子':'M3 18c1 0 2-1 3-1 2 0 3 1 4 1s2-1 4-1 2 1 4 1 2-1 3-1',
+  '配饰':'M12 3a4 4 0 0 0-4 4h8a4 4 0 0 0-4-4Z'
+};
+const COLOR_ICON = { 'T恤':'#B5836E','衬衫':'#9CAF88','裤子':'#7C8FA0','裙子':'#B5705C','风衣':'#8A6F5A','毛衣':'#C0A272','鞋子':'#8A8378','配饰':'#A395AE' };
+
+let garments = [
+  {id:1,name:'白色基础 T 恤',category:'T恤',color:'白',season:'四季',fit:'常规',fabric:'纯棉',occasion:'日常',status:'ok',notes:''},
+  {id:2,name:'黑色修身 T 恤',category:'T恤',color:'黑',season:'四季',fit:'修身',fabric:'纯棉',occasion:'日常',status:'ok',notes:''},
+  {id:3,name:'雾霾蓝衬衫',category:'衬衫',color:'蓝',season:'四季',fit:'常规',fabric:'棉质',occasion:'通勤',status:'ok',notes:''},
+  {id:4,name:'白色廓形衬衫',category:'衬衫',color:'白',season:'四季',fit:'廓形',fabric:'棉质',occasion:'通勤',status:'ok',notes:''},
+  {id:5,name:'浅蓝直筒牛仔裤',category:'裤子',color:'牛仔蓝',season:'四季',fit:'常规',fabric:'牛仔',occasion:'日常',status:'ok',notes:''},
+  {id:6,name:'黑色阔腿西裤',category:'裤子',color:'黑',season:'四季',fit:'宽松',fabric:'西装料',occasion:'通勤',status:'ok',notes:''},
+  {id:7,name:'燕麦色针织开衫',category:'毛衣',color:'米白',season:'秋冬',fit:'宽松',fabric:'羊毛混纺',occasion:'日常',status:'ok',notes:''},
+  {id:8,name:'酒红色高领毛衣',category:'毛衣',color:'红',season:'秋冬',fit:'修身',fabric:'羊毛',occasion:'约会',status:'wash',notes:'清洗中'},
+  {id:9,name:'卡其色风衣',category:'风衣',color:'棕',season:'秋冬',fit:'宽松',fabric:'棉质',occasion:'通勤',status:'ok',notes:''},
+  {id:10,name:'黑色百褶裙',category:'裙子',color:'黑',season:'四季',fit:'常规',fabric:'聚酯纤维',occasion:'约会',status:'ok',notes:''},
+  {id:11,name:'碎花半身裙',category:'裙子',color:'粉',season:'春夏',fit:'常规',fabric:'雪纺',occasion:'约会',status:'off',notes:'暂不可穿'},
+  {id:12,name:'小白鞋',category:'鞋子',color:'白',season:'四季',fit:'常规',fabric:'皮革',occasion:'日常',status:'ok',notes:''},
+  {id:13,name:'黑色乐福鞋',category:'鞋子',color:'黑',season:'四季',fit:'常规',fabric:'皮革',occasion:'通勤',status:'ok',notes:''},
+  {id:14,name:'灰色羊毛围巾',category:'配饰',color:'灰',season:'秋冬',fit:'常规',fabric:'羊毛',occasion:'日常',status:'ok',notes:''},
+  {id:15,name:'焦糖色单肩包',category:'配饰',color:'棕',season:'四季',fit:'常规',fabric:'皮革',occasion:'日常',status:'ok',notes:''},
+  {id:16,name:'米白色针织背心',category:'毛衣',color:'米白',season:'春夏',fit:'修身',fabric:'针织',occasion:'日常',status:'ok',notes:''},
+];
+
+let outfits = [
+  {name:'通勤利落风',items:[{n:'雾霾蓝衬衫',c:'衬衫',col:'蓝'},{n:'黑色阔腿西裤',c:'裤子',col:'黑'},{n:'黑色乐福鞋',c:'鞋子',col:'黑'}],reason:'衬衫 + 阔腿西裤干练得体，适合通勤；蓝黑配色稳重又不沉闷。',notes:'今日有微风，建议外搭卡其色风衣。'},
+  {name:'温柔约会风',items:[{n:'白色廓形衬衫',c:'衬衫',col:'白'},{n:'黑色百褶裙',c:'裙子',col:'黑'},{n:'小白鞋',c:'鞋子',col:'白'}],reason:'白衬衫配百褶裙，温柔又不失轻盈，适合约会或休闲场合。',notes:'早晚偏凉，可叠穿燕麦色针织开衫。'},
+  {name:'休闲舒适风',items:[{n:'白色基础 T 恤',c:'T恤',col:'白'},{n:'浅蓝直筒牛仔裤',c:'裤子',col:'牛仔蓝'},{n:'小白鞋',c:'鞋子',col:'白'}],reason:'白 T + 牛仔裤是不过时的组合，轻松舒服，适合日常出行。',notes:'天气多云，无需厚重外套。'},
+  {name:'秋日叠穿风',items:[{n:'燕麦色针织开衫',c:'毛衣',col:'米白'},{n:'白色基础 T 恤',c:'T恤',col:'白'},{n:'浅蓝直筒牛仔裤',c:'裤子',col:'牛仔蓝'}],reason:'针织开衫叠穿白 T，温暖又有层次感，适合微凉的秋日。',notes:'记得搭配一双浅色鞋履。'},
+  {name:'知性正式风',items:[{n:'雾霾蓝衬衫',c:'衬衫',col:'蓝'},{n:'黑色阔腿西裤',c:'裤子',col:'黑'},{n:'卡其色风衣',c:'风衣',col:'棕'}],reason:'衬衫配风衣利落知性，适合面试、见客户等正式场合。',notes:'建议搭配深色乐福鞋或短靴。'},
+];
+let outfitIndex = 0;
+
+const CHAT_PLAN = [
+  {name:'温柔约会 · 调整版',items:[{n:'白色廓形衬衫',c:'衬衫',col:'白'},{n:'碎花半身裙',c:'裙子',col:'粉'},{n:'小白鞋',c:'鞋子',col:'白'}],reason:'把裤子换成裙子，更温柔轻盈；白衬衫与碎花裙和谐呼应。',notes:'碎花裙目前「暂不可穿」，已用百褶裙替代。'},
+  {name:'温柔约会 · 备选',items:[{n:'燕麦色针织开衫',c:'毛衣',col:'米白'},{n:'黑色百褶裙',c:'裙子',col:'黑'},{n:'小白鞋',c:'鞋子',col:'白'}],reason:'针织开衫 + 百褶裙，软糯温柔，适合晚间约会。',notes:'夜凉记得带上外套。'},
+];
+
+let gColor = '白', evalColor = '米白', gStatus = 'ok', fbRate = '舒适';
+let setupGender = '';
+let state = { currentCat:'', historyTab:'rec', chatStarted:false };
+
+/* ============================================================
+   工具
+   ============================================================ */
+const $ = s => document.querySelector(/^[.#\[]/.test(s) ? s : '#'+s);
+const $$ = s => document.querySelectorAll(s);
+
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+/* ---------- 视图切换 ---------- */
+function showView(name){
+  $$('.view').forEach(v=>v.classList.remove('active'));
+  const target = $('#view-' + name);
+  if(target) target.classList.add('active');
+  $$('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.view===name));
+  $$('.bottomnav .bn').forEach(n=>n.classList.toggle('active', n.dataset.view===name));
+  document.body.classList.toggle('gate', name==='auth' || name==='setup');
+  $('#main').scrollTop = 0;
+  if(name==='wardrobe'){ renderCats(); renderGarments(); }
+  if(name==='chat' && !state.chatStarted){ initChat(); }
+  if(name==='history'){ renderHistory(); }
+  if(name==='home'){ renderOutfits(); }
+}
+
+/* ---------- 登录 / 资料 ---------- */
+function authTab(t){
+  $('#tab-login').classList.toggle('on', t==='login');
+  $('#tab-register').classList.toggle('on', t==='register');
+}
+function enterApp(){
+  showView('setup');
+}
+function pickSeg(group, val){
+  const map = { gender:'#gender-seg', body:'#body-seg', gstatus:'#g-status', fb:'#fb-rate' };
+  const wrap = $(map[group]); if(!wrap) return;
+  wrap.querySelectorAll('.seg-option').forEach(o=>o.classList.toggle('on', o.dataset.v===val));
+  if(group==='gender'){ setupGender = val; checkSetupReady(); }
+  if(group==='gstatus') gStatus = val;
+  if(group==='fb') fbRate = val;
+}
+function checkSetupReady(){
+  const city = $('#setup-city').value;
+  $('#setup-submit').disabled = !(setupGender && city);
+}
+function toggleStyle(el){ el.classList.toggle('on'); }
+function finishSetup(){
+  toast('资料已保存，欢迎使用');
+  showView('home');
+}
+
+/* ---------- 首页推荐 ---------- */
+function renderOutfits(){
+  const grid = $('#outfit-grid'); grid.innerHTML = '';
+  const shown = outfits.slice(outfitIndex, outfitIndex+3);
+  $('#outfit-label').textContent = '为你搭配 · ' + shown.length + ' 套方案';
+  shown.forEach((o,i)=>{
+    const el = document.createElement('div');
+    el.className = 'outfit-card';
+    el.style.animationDelay = (i*70)+'ms';
+    const items = o.items.map(it=>{
+      const hex = COLOR_MAP[it.col] || '#999';
+      return `<div class="gitem"><div class="thumb" style="background:${hex}"><div class="fab" style="background-image:radial-gradient(rgba(0,0,0,.3) 1px,transparent 1px)"></div></div><div class="cat">${it.n}</div></div>`;
+    }).join('');
+    el.innerHTML = `
+      <div class="outfit-rank">LOOK ${String(i+1).padStart(2,'0')}</div>
+      <div class="outfit-name">${o.name}</div>
+      <div class="outfit-items">${items}</div>
+      <div class="outfit-reason">${o.reason}</div>
+      <div class="outfit-notes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>${o.notes}</div>
+      <div class="outfit-actions">
+        <button class="rate-btn" onclick="rateOutfit(this,'like')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v11H4V10h3ZM7 10l3-7c1 0 2 .8 2 2v3h6a2 2 0 0 1 2 2.4l-1 6A2 2 0 0 1 17 18H7"/></svg>喜欢</button>
+        <button class="rate-btn" onclick="rateOutfit(this,'mid')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 15h8M9 9h6"/></svg>一般</button>
+        <button class="rate-btn" onclick="rateOutfit(this,'bad')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 10v11h3V10h-3ZM17 10l-3-7c-1 0-2 .8-2 2v3H6a2 2 0 0 0-2 2.4l1 6a2 2 0 0 0 2 1.6h7"/></svg>不喜欢</button>
+      </div>
+      <button class="btn btn-soft btn-sm" style="margin-top:2px" onclick="openFeedback()">今天穿了 · 反馈</button>`;
+    grid.appendChild(el);
+  });
+}
+function rateOutfit(btn, kind){
+  const group = btn.parentElement;
+  group.querySelectorAll('.rate-btn').forEach(b=>b.className='rate-btn');
+  btn.classList.add('on-'+kind);
+  const label = {like:'喜欢',mid:'一般',bad:'不喜欢'}[kind];
+  toast('已记录：' + label);
+}
+function shuffleOutfits(){
+  outfitIndex = (outfitIndex + 3) % outfits.length;
+  renderOutfits();
+  toast('已为你换一批方案');
+}
+
+/* ---------- 电子衣橱 ---------- */
+function catColorHex(name){ return COLOR_ICON[name] || '#999'; }
+function renderCats(){
+  const grid = $('#cat-grid'); grid.innerHTML = '';
+  CATEGORIES.forEach(cat=>{
+    const count = garments.filter(g=>g.category===cat).length;
+    const el = document.createElement('div');
+    el.className = 'card cat-card' + (state.currentCat===cat?' on':'');
+    el.onclick = ()=>{ state.currentCat = state.currentCat===cat?'':cat; renderCats(); renderGarments(); };
+    el.innerHTML = `
+      <div class="c-ico" style="background:${state.currentCat===cat?'rgba(255,255,255,.14)':COLOR_ICON[cat]+'22'};color:${state.currentCat===cat?'#F3EBDD':COLOR_ICON[cat]}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="${CAT_ICON[cat]}"/></svg>
+      </div>
+      <div class="c-name">${cat}</div>
+      <div class="c-count">${count} 件</div>`;
+    grid.appendChild(el);
+  });
+  $('#wardrobe-count').textContent = garments.length;
+}
+function renderGarments(){
+  const fc = $('#f-color').value, fs = $('#f-season').value, fo = $('#f-occasion').value;
+  let list = garments.filter(g=>{
+    if(state.currentCat && g.category!==state.currentCat) return false;
+    if(fc && g.color!==fc) return false;
+    if(fs && g.season!==fs) return false;
+    if(fo && g.occasion!==fo) return false;
+    return true;
+  });
+  $('#garment-result-count').textContent = '共 ' + list.length + ' 件';
+  const grid = $('#garment-grid'); grid.innerHTML = '';
+  if(!list.length){
+    grid.innerHTML = `<div class="card" style="grid-column:1/-1;padding:40px;text-align:center;color:var(--ink-3)">没有符合条件的衣物，试试调整筛选或新增一件。</div>`;
+    return;
+  }
+  list.forEach(g=>{
+    const hex = COLOR_MAP[g.color] || '#999';
+    const st = {ok:['可穿','ok'],wash:['清洗中','wash'],off:['暂不可穿','off']}[g.status];
+    const el = document.createElement('div');
+    el.className = 'card garment-card';
+    el.innerHTML = `
+      <div class="garment-img">
+        <div class="swatch" style="background:linear-gradient(150deg,${hex},${hex}cc)"></div>
+        <div class="fab" style="background-image:radial-gradient(rgba(0,0,0,.28) 1px,transparent 1px)"></div>
+        <span class="g-cat">${g.category}</span>
+        <span class="garment-status ${st[1]}">${st[0]}</span>
+      </div>
+      <div class="garment-body">
+        <div class="garment-name">${g.name}</div>
+        <div class="garment-meta">
+          <span class="tag">${g.color}</span><span class="tag">${g.season}</span><span class="tag">${g.occasion}</span>${g.fabric?`<span class="tag">${g.fabric}</span>`:''}
+        </div>
+        <div class="garment-foot">
+          <button class="gfoot-btn" onclick="editGarment(${g.id})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>编辑</button>
+          <button class="gfoot-btn" onclick="cycleStatus(${g.id})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6"/></svg>状态</button>
+          <button class="gfoot-btn danger" onclick="delGarment(${g.id})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>
+        </div>
+      </div>`;
+    grid.appendChild(el);
+  });
+}
+function cycleStatus(id){
+  const g = garments.find(x=>x.id===id); if(!g) return;
+  const order = ['ok','wash','off'];
+  g.status = order[(order.indexOf(g.status)+1)%order.length];
+  renderGarments();
+  toast('「' + g.name + '」状态已更新');
+}
+function delGarment(id){
+  const g = garments.find(x=>x.id===id); if(!g) return;
+  garments = garments.filter(x=>x.id!==id);
+  renderCats(); renderGarments();
+  toast('已删除「' + g.name + '」');
+}
+function openGarmentModal(){
+  $('#gmodal-title').textContent = '新增衣物';
+  $('#g-name').value=''; $('#g-cat').value=''; $('#g-season').value='四季';
+  $('#g-fit').value='常规'; $('#g-fabric').value=''; $('#g-occasion').value='日常'; $('#g-notes').value='';
+  gColor='白'; gStatus='ok'; renderColorPicker('g-color', gColor, v=>gColor=v);
+  $('#g-status').querySelectorAll('.seg-option').forEach(o=>o.classList.toggle('on', o.dataset.v==='ok'));
+  $('#garment-modal').classList.add('open');
+}
+function editGarment(id){
+  const g = garments.find(x=>x.id===id); if(!g) return;
+  $('#gmodal-title').textContent = '编辑衣物';
+  $('#g-name').value=g.name; $('#g-cat').value=g.category; $('#g-season').value=g.season;
+  $('#g-fit').value=g.fit||'常规'; $('#g-fabric').value=g.fabric||''; $('#g-occasion').value=g.occasion; $('#g-notes').value=g.notes||'';
+  gColor=g.color; gStatus=g.status;
+  renderColorPicker('g-color', gColor, v=>gColor=v);
+  $('#g-status').querySelectorAll('.seg-option').forEach(o=>o.classList.toggle('on', o.dataset.v===g.status));
+  $('#garment-modal').classList.add('open');
+}
+function closeGarmentModal(){ $('#garment-modal').classList.remove('open'); }
+function saveGarment(){
+  const name = $('#g-name').value.trim();
+  const cat = $('#g-cat').value;
+  if(!cat){ toast('请选择品类'); return; }
+  const g = {
+    id: Date.now(), name: name || cat, category: cat, color: gColor,
+    season: $('#g-season').value, fit: $('#g-fit').value, fabric: $('#g-fabric').value,
+    occasion: $('#g-occasion').value, status: gStatus, notes: $('#g-notes').value
+  };
+  garments.unshift(g);
+  closeGarmentModal(); renderCats(); renderGarments();
+  toast('已保存「' + g.name + '」');
+}
+
+/* ---------- 色板渲染 ---------- */
+function renderColorPicker(sel, val, cb){
+  const wrap = $(sel); wrap.innerHTML='';
+  Object.entries(COLOR_MAP).forEach(([name,hex])=>{
+    const s = document.createElement('div');
+    s.className = 'color-swatch' + (name===val?' on':'');
+    s.style.background = hex;
+    s.title = name;
+    s.onclick = ()=>{ cb(name); renderColorPicker(sel, name, cb); };
+    wrap.appendChild(s);
+  });
+}
+
+/* ---------- AI 对话 ---------- */
+function initChat(){
+  state.chatStarted = true;
+  const sc = $('#chat-scroll'); sc.innerHTML='';
+  addMsg('ai', `你好，我是你的穿搭助手 👋 结合今天上海多云、22°C 的天气，我可以根据你的场景、风格和限制，从衣橱里搭配出方案。你想穿成什么样？`);
+  renderChatPlan(CHAT_PLAN[0]);
+}
+function addMsg(who, html){
+  const sc = $('#chat-scroll');
+  const el = document.createElement('div');
+  el.className = 'msg ' + who;
+  el.innerHTML = `<div class="msg-ava">${who==='ai'?'AI':'我'}</div><div class="msg-bubble">${html}</div>`;
+  sc.appendChild(el);
+  sc.scrollTop = sc.scrollHeight;
+  return el;
+}
+function renderChatPlan(plan){
+  const sc = $('#chat-scroll');
+  const items = plan.items.map(it=>{
+    const hex = COLOR_MAP[it.col]||'#999';
+    return `<div class="gitem"><div class="thumb" style="background:${hex};width:44px;height:44px"><div class="fab" style="background-image:radial-gradient(rgba(0,0,0,.3) 1px,transparent 1px)"></div></div><div class="cat">${it.n}</div></div>`;
+  }).join('');
+  const html = `<div class="chat-outfit">
+    <div class="chat-outfit-card">
+      <div style="font-family:var(--serif);font-weight:600;margin-bottom:8px">${plan.name}</div>
+      <div class="outfit-items">${items}</div>
+      <div class="outfit-reason" style="margin-top:10px">${plan.reason}</div>
+      <div class="outfit-notes" style="margin-top:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>${plan.notes}</div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="rate-btn" onclick="rateOutfit(this,'like')">喜欢</button>
+        <button class="rate-btn" onclick="rateOutfit(this,'mid')">一般</button>
+        <button class="rate-btn" onclick="rateOutfit(this,'bad')">不喜欢</button>
+        <button class="btn btn-soft btn-sm" onclick="openFeedback()">今天穿了</button>
+      </div>
+    </div>
+  </div>`;
+  const el = document.createElement('div');
+  el.className = 'msg ai';
+  el.innerHTML = `<div class="msg-ava">AI</div><div class="msg-bubble">${html}</div>`;
+  sc.appendChild(el);
+  sc.scrollTop = sc.scrollHeight;
+}
+function sendChat(){
+  const input = $('#chat-input'); const text = input.value.trim(); if(!text) return;
+  input.value='';
+  addMsg('user', text);
+  setTimeout(()=>{
+    addMsg('ai', '好的，已理解你的需求：' + pickReply(text));
+    renderChatPlan(CHAT_PLAN[1]);
+  }, 650);
+}
+function sendQuick(t){ $('#chat-input').value = t; sendChat(); }
+function pickReply(t){
+  if(t.includes('裙子')) return '把下装换成裙子，并优先避开深色，保留温柔轻盈的感觉。';
+  if(t.includes('黑')) return '本轮已排除黑色单品，改用浅色系组合。';
+  if(t.includes('休闲')) return '降低正式度，换成更放松、舒适的搭配。';
+  if(t.includes('约会')) return '以约会场合为主，偏温柔风格，不要太正式。';
+  return '我会结合天气与你的衣橱来调整，下面是新方案。';
+}
+function resetChat(){
+  state.chatStarted=false; initChat(); toast('已开启新对话');
+}
+
+/* ---------- 穿着反馈 ---------- */
+function openFeedback(){ $('#feedback-modal').classList.add('open'); }
+function closeFeedback(){ $('#feedback-modal').classList.remove('open'); }
+function submitFeedback(){
+  closeFeedback(); toast('穿着反馈已记录，感谢！');
+}
+
+/* ---------- 购前评估 ---------- */
+function fakeUpload(){
+  $('#upload-empty').style.display='none';
+  $('#upload-preview').style.display='block';
+  toast('已添加参考图（演示）');
+}
+function runEval(){
+  const cat = $('#eval-cat').value;
+  if(!cat){ toast('请选择品类'); return; }
+  const res = $('#eval-result');
+  const matches = garments.filter(g=>g.category!=='配饰').slice(0,4);
+  const rows = matches.map(g=>{
+    const pct = 60 + (g.id*7)%38;
+    const hex = COLOR_MAP[g.color]||'#999';
+    return `<div class="match-row">
+      <div class="match-pct">${pct}%</div>
+      <div class="thumb" style="width:44px;height:44px;border-radius:10px;background:${hex};flex:none"></div>
+      <div style="flex:1"><div style="font-weight:600;font-size:14px">${g.name}</div><div class="hint" style="margin-top:1px">${g.category} · ${g.color} · ${g.season}</div></div>
+      <span class="tag">可搭配</span>
+    </div>`;
+  }).join('');
+  res.innerHTML = `
+    <div style="font-family:var(--serif);font-size:18px;font-weight:600;margin-bottom:6px">评估结论</div>
+    <div class="outfit-reason" style="margin-bottom:16px">根据你填写的属性（${cat} · ${evalColor}），当前标签可与 <b>${matches.length} 件</b> 现有衣物搭配；与已有衣物在品类、颜色和季节上存在相似，但基于标签无法给出「是否重复」的确定判断。</div>
+    <div style="font-size:13px;font-weight:600;color:var(--ink-3);margin-bottom:8px">可搭配的衣物</div>
+    ${rows}
+    <div style="margin-top:14px;display:flex;gap:8px">
+      <button class="btn btn-soft btn-sm" onclick="toast('已进入追问（演示）')">继续追问</button>
+      <button class="btn btn-ghost btn-sm" onclick="toast('评估已保存到历史')">保存评估</button>
+    </div>`;
+  res.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+/* ---------- 历史 ---------- */
+function histTab(t){
+  state.historyTab = t;
+  $$('.hist-tabs .chip').forEach(c=>c.classList.toggle('on', c.dataset.tab===t));
+  renderHistory();
+}
+function renderHistory(){
+  const wrap = $('#hist-list'); wrap.innerHTML='';
+  const data = {
+    rec:[
+      {ico:'home',title:'今日推荐 · 通勤利落风',meta:'今天 08:12 · 3 套方案 · 已评价「喜欢」'},
+      {ico:'home',title:'今日推荐 · 温柔约会风',meta:'今天 08:12 · 评价「一般」'},
+      {ico:'home',title:'昨日推荐 · 秋日叠穿风',meta:'昨天 09:03 · 穿着反馈：舒适'},
+    ],
+    chat:[
+      {ico:'chat',title:'对话 · 今晚约会，想温柔一点',meta:'今天 20:35 · 3 轮调整 · 已选定方案'},
+      {ico:'chat',title:'对话 · 周末出游，休闲为主',meta:'昨天 15:20 · 2 轮调整'},
+    ],
+    eval:[
+      {ico:'eval',title:'购前评估 · 燕麦色针织开衫',meta:'今天 14:02 · 可与 4 件衣物搭配 · 有相似单品'},
+      {ico:'eval',title:'购前评估 · 黑色短靴',meta:'上周五 · 暂未发现明显相似单品'},
+    ],
+  }[state.historyTab];
+  data.forEach(d=>{
+    const icoMap = {home:'M3 10.5 12 3l9 7.5M5 9.5V21h14V9.5',chat:'M12 3a9 9 0 0 1 4 17.2c-.9.4-1.8.5-3 .5H4l1.5-3A9 9 0 0 1 12 3Z',eval:'M12 3 3 7v6c0 5 4 8 9 9 5-1 9-4 9-9V7l-9-4Z'};
+    const el = document.createElement('div');
+    el.className = 'card hist-item';
+    el.innerHTML = `<div class="hist-ico" style="background:var(--clay-soft);color:var(--clay-deep)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="${icoMap[d.ico]}"/></svg></div>
+      <div class="hist-body"><div class="hist-title">${d.title}</div><div class="hist-meta">${d.meta}</div></div>
+      <button class="btn btn-ghost btn-sm" onclick="toast('已打开详情（演示）')">查看</button>`;
+    wrap.appendChild(el);
+  });
+}
+
+/* ---------- 初始化 ---------- */
+document.querySelectorAll('.nav-item').forEach(n=>{
+  n.onclick = ()=>showView(n.dataset.view);
+});
+renderColorPicker('g-color','白',v=>gColor=v);
+renderColorPicker('eval-color','米白',v=>evalColor=v);
+renderOutfits();
+
+/* ===================== 后端接入层（自动注入） ===================== */
+/* 将页面硬编码的演示数据替换为 wardrobe-agent 后端真实数据。
+   若后端不可达，页面仍保持原演示数据，并在右上角提示「后端未连接」。*/
+
+const API_BASE = (location.protocol === 'file:') ? 'http://127.0.0.1:8000' : '';
+const WARDROBE_CITY = '上海';
+
+const _CAT_MAP = {
+  '短袖':'T恤','长袖':'T恤','Polo衫':'T恤','Polo 衫':'T恤','背心':'T恤','吊带':'T恤',
+  '衬衫':'衬衫',
+  '针织衫':'毛衣','毛衣':'毛衣','卫衣':'毛衣','厚毛衣':'毛衣',
+  '短裤':'裤子','长裤':'裤子','牛仔裤':'裤子','直筒裤':'裤子','阔腿裤':'裤子','运动裤':'裤子','高腰阔腿裤':'裤子',
+  '半身裙':'裙子','A字裙':'裙子','包臀裙':'裙子','连衣裙':'裙子','收腰连衣裙':'裙子',
+  '羽绒服':'风衣','棉服':'风衣','大衣':'风衣','西装外套':'风衣','夹克':'风衣','风衣':'风衣',
+  '帆布鞋':'鞋子','运动鞋':'鞋子','皮鞋':'鞋子','凉鞋':'鞋子','拖鞋':'鞋子','靴子':'鞋子',
+  '帽子':'配饰','围巾':'配饰','腰带':'配饰','包包':'配饰','首饰':'配饰'
+};
+
+function _normColor(c){
+  if (!c) return '灰';
+  const s = String(c);
+  const table = { '米':'米白','米白':'米白','牛仔蓝':'牛仔蓝','黑':'黑','白':'白','灰':'灰',
+                  '棕':'棕','蓝':'蓝','绿':'绿','红':'红','粉':'粉','黄':'黄','卡其':'棕','紫':'灰' };
+  for (const k in table) if (s.indexOf(k) >= 0) return table[k];
+  return '灰';
+}
+
+function _mapGarment(g){
+  return {
+    id: g.item_id,
+    name: g.name || g.sub_category || '未命名单品',
+    category: _CAT_MAP[g.sub_category] || _CAT_MAP[g.category] || 'T恤',
+    color: _normColor(g.color),
+    season: g.season || '四季',
+    fit: g.fit_snug || g.fit_silhouette || '',
+    fabric: g.fabric || '',
+    occasion: (g.occasion || []).join('·') || '日常',
+    status: 'ok',
+    notes: (g.tags || []).join('·'),
+    _raw: g
+  };
+}
+
+function _mapOutfit(o){
+  const items = (o.items || []).map(it => ({
+    n: it.name || it.sub_category || '单品',
+    c: _CAT_MAP[it.sub_category] || _CAT_MAP[it.category] || 'T恤',
+    col: _normColor(it.color)
+  }));
+  const summary = (o.reason && o.reason.summary) || '后端引擎搭配';
+  const points = (o.reason && o.reason.points) || [];
+  return {
+    id: o.outfit_id,
+    name: summary.length > 12 ? summary.slice(0, 12) : summary,
+    items: items,
+    reason: summary,
+    notes: points.length ? points.slice(0, 2).join('；') : ('综合得分 ' + (o.score != null ? o.score : '-'))
+  };
+}
+
+async function _api(path, opts){
+  const res = await fetch(API_BASE + path, opts || {});
+  if (!res.ok) throw new Error(path + ' HTTP ' + res.status);
+  return await res.json();
+}
+function _json(body){
+  return { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body||{}) };
+}
+
+/* ---------- 连接状态徽标 ---------- */
+let _badge = null;
+function _setBadge(text, color){
+  if (!_badge){
+    _badge = document.createElement('div');
+    _badge.id = 'backend-badge';
+    _badge.style.cssText = 'position:fixed;top:12px;right:12px;z-index:9999;padding:6px 12px;'+
+      'border-radius:999px;font-size:12px;font-weight:600;color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.18);'+
+      'font-family:inherit;pointer-events:none;transition:background .3s';
+    document.body.appendChild(_badge);
+  }
+  _badge.textContent = text;
+  _badge.style.background = color || '#2e7d32';
+}
+
+/* ---------- 文本节点按内容匹配替换 ---------- */
+function _setByText(pattern, newText){
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+  let n;
+  while ((n = walker.nextNode())){
+    if (pattern.test((n.nodeValue || '').trim())){
+      n.nodeValue = newText;
+      return true;
+    }
+  }
+  return false;
+}
+
+/* ---------- 业务加载 ---------- */
+let W_USER_ID = null;
+let W_SESSION_ID = null;
+let W_OUTFIT_IDS = [];
+
+async function _ensureUser(){
+  let uid = localStorage.getItem('wardrobe_uid');
+  if (uid){
+    try {
+      const r = await _api('/api/v1/user/profile?user_id=' + encodeURIComponent(uid));
+      if (r && r.code === 0){ W_USER_ID = uid; return uid; }
+    } catch (e) { /* 用户失效则重新注册 */ }
+  }
+  const r = await _api('/api/v1/user/register', _json({ nickname: '林晓' }));
+  W_USER_ID = r.data.user_id;
+  localStorage.setItem('wardrobe_uid', W_USER_ID);
+  return W_USER_ID;
+}
+
+async function _loadWeather(){
+  try {
+    const r = await _api('/api/v1/weather?city=' + encodeURIComponent(WARDROBE_CITY));
+    const w = r.data || {};
+    if (w.temp != null){
+      _setByText(/^\d{1,2}(\.\d)?°C$/, Math.round(w.temp) + '°C');
+      _setByText(/^\d{1,2}(\.\d)?°$/, Math.round(w.temp) + '°');
+    }
+    if (w.rain){
+      _setByText(/^降雨\s*\d+%$/, '降雨 ' + (w.rain === '无降雨' ? '0%' : '有降雨'));
+      _setByText(/多云|晴|阴/, w.rain === '无降雨' ? '多云 · 实时数据' : w.rain + ' · 实时数据');
+    }
+    return w;
+  } catch (e) { return null; }
+}
+
+async function _loadGarments(){
+  const r = await _api('/api/v1/clothing?user_id=' + encodeURIComponent(W_USER_ID) + '&page_size=100');
+  const items = (r.data && r.data.items) || [];
+  garments = items.map(_mapGarment);
+  if (typeof renderGarments === 'function') renderGarments();
+  if (typeof renderCats === 'function') renderCats();
+  // 侧边栏「电子衣橱」数量徽标
+  document.querySelectorAll('*').forEach(function(el){
+    if (el.children.length === 0 && /^\d+$/.test((el.textContent||'').trim()) && el.textContent.trim() === '16'){
+      el.textContent = String(garments.length);
+    }
+  });
+  return garments.length;
+}
+
+async function _loadRecommend(){
+  const s = await _api('/api/v1/chat/session', _json({
+    user_id: W_USER_ID,
+    occasion: '通勤',
+    weather: { city: WARDROBE_CITY, temp: 22, rain: '无降雨' }
+  }));
+  W_SESSION_ID = s.data.session_id;
+  const m = await _api('/api/v1/chat/' + W_SESSION_ID + '/message', _json({ action:'recommend', payload:{} }));
+  const outs = (m.data && m.data.outfits) || [];
+  W_OUTFIT_IDS = outs.map(function(o){ return o.outfit_id; });
+  if (outs.length){
+    outfits = outs.map(_mapOutfit);
+    outfitIndex = 0;
+  }
+  if (typeof renderOutfits === 'function') renderOutfits();
+  return outs.length;
+}
+
+/* ---------- 引导启动 ---------- */
+async function _boot(){
+  _setBadge('正在连接后端…', '#616161');
+  try {
+    await _ensureUser();
+    const w = await _loadWeather();
+    const gCount = await _loadGarments();
+    let oCount = 0;
+    try { oCount = await _loadRecommend(); } catch (e) { oCount = 0; }
+
+    _setBadge('后端已连接 · 衣物 ' + gCount + ' 件 · 推荐 ' + oCount + ' 套 · 天气 ' +
+      (w && w.source && w.source.indexOf('open-meteo') === 0 ? '实时' : '降级'), '#2e7d32');
+
+    // 跳过登录页，直接进入主界面便于查看
+    try { if (typeof enterApp === 'function') enterApp(); } catch (e) {}
+    try { if (typeof showView === 'function') showView('home'); } catch (e) {}
+  } catch (err) {
+    _setBadge('后端未连接（' + (err && err.message ? err.message : '未知错误') + '）', '#c62828');
+  }
+}
+
+/* ---------- 交互接管 ---------- */
+// 「换一批 / 刷新推荐」改为向后端要新方案
+function _hookRefresh(){
+  document.querySelectorAll('button, .btn, [onclick]').forEach(function(el){
+    const t = (el.textContent || '').trim();
+    if (t === '刷新推荐' || t === '换一批'){
+      el.addEventListener('click', async function(ev){
+        ev.preventDefault(); ev.stopPropagation();
+        try {
+          if (W_SESSION_ID){
+            const m = await _api('/api/v1/chat/' + W_SESSION_ID + '/message', _json({ action:'reject', payload:{} }));
+            const outs = (m.data && m.data.outfits) || [];
+            if (outs.length){ outfits = outs.map(_mapOutfit); outfitIndex = 0; W_OUTFIT_IDS = outs.map(function(o){return o.outfit_id;}); }
+            if (typeof renderOutfits === 'function') renderOutfits();
+            if (typeof toast === 'function') toast('已从后端获取新方案 ' + outs.length + ' 套');
+          }
+        } catch (e) {
+          if (typeof toast === 'function') toast('刷新失败：' + e.message);
+        }
+      }, true);
+    }
+  });
+}
+
+// 反馈提交同步到后端
+const _origSubmitFeedback = (typeof submitFeedback === 'function') ? submitFeedback : null;
+submitFeedback = function(){
+  if (_origSubmitFeedback) _origSubmitFeedback.apply(this, arguments);
+  const rating = (typeof fbRate !== 'undefined' && fbRate === '舒适') ? 'like'
+               : (typeof fbRate !== 'undefined' && fbRate === '不合适') ? 'dislike' : 'neutral';
+  if (!W_USER_ID) return;
+  _api('/api/v1/feedback', _json({
+    user_id: W_USER_ID,
+    session_id: W_SESSION_ID,
+    outfit_id: W_OUTFIT_IDS[outfitIndex] || (W_OUTFIT_IDS[0] || ''),
+    rating: rating,
+    tags: [],
+    comment: ''
+  })).catch(function(){});
+};
+
+window.addEventListener('DOMContentLoaded', function(){
+  _boot().then(_hookRefresh).catch(function(){});
+});
+
+</script>
+</body>
+</html>
