@@ -15,8 +15,9 @@ from fastapi.staticfiles import StaticFiles
 
 from app.agent.engine import RecommendEngine, rule_repo
 from app.agent.kb import KnowledgeIndex
-from app.api import chat, clothing, feedback, purchase, user, weather
+from app.api import chat, clothing, feedback, purchase, upload, user, weather
 from app.db import init_db
+from app.security import AuthMiddleware
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
@@ -40,6 +41,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# 登录校验：保护 /api/v1 下的业务接口（register/login/weather 等白名单除外）。
+# 先加入，后加入的 CORS 位于更外层，保证预检请求与错误响应都带跨域头。
+app.add_middleware(AuthMiddleware)
+
 # 开发期允许跨域：前端可能用 file:// 直接打开或跑在别的端口
 app.add_middleware(
     CORSMiddleware,
@@ -55,6 +60,7 @@ app.include_router(weather.router, prefix="/api/v1/weather", tags=["天气模块
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["对话 Agent（核心）"])
 app.include_router(feedback.router, prefix="/api/v1/feedback", tags=["反馈模块"])
 app.include_router(purchase.router, prefix="/api/v1/purchase", tags=["购前评估模块"])
+app.include_router(upload.router, prefix="/api/v1/upload", tags=["图片上传"])
 
 
 @app.get("/health", tags=["运维"])
@@ -72,6 +78,11 @@ def health(request: Request):
         "knowledge_base": kb_stats,
     }
 
+
+# 上传图片目录：前端 <img src="/uploads/xxx.jpg"> 直接访问
+UPLOAD_DIR = BASE_DIR / "data" / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 # 前端静态页面：必须放在所有 API 路由之后，避免覆盖 /api 前缀
 if FRONTEND_DIR.is_dir():

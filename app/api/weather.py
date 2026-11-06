@@ -107,6 +107,7 @@ def _fetch_weather(city: str) -> dict | None:
                 "latitude": lat,
                 "longitude": lon,
                 "current": "temperature_2m,precipitation,weather_code",
+                "daily": "temperature_2m_max,temperature_2m_min,weather_code",
                 "hourly": "precipitation_probability",
                 "forecast_days": 1,
                 "timezone": "Asia/Shanghai",
@@ -122,9 +123,26 @@ def _fetch_weather(city: str) -> dict | None:
         precipitation = current.get("precipitation", 0.0) or 0.0
         probs = (data.get("hourly") or {}).get("precipitation_probability") or []
         rain_prob = probs[0] if probs else None
+
+        # 当天最低/最高温（daily 第 0 天即今天）
+        daily = data.get("daily") or {}
+        def _first(key):
+            arr = daily.get(key) or []
+            return arr[0] if arr else None
+        t_max = _first("temperature_2m_max")
+        t_min = _first("temperature_2m_min")
+        d_code = _first("weather_code")
+
+        weather_code = current.get("weather_code")
+        if weather_code is None:
+            weather_code = d_code
+
         return {
             "city": city,
             "temp": round(float(temp), 1),
+            "temp_max": None if t_max is None else round(float(t_max), 1),
+            "temp_min": None if t_min is None else round(float(t_min), 1),
+            "weather_code": None if weather_code is None else int(weather_code),
             "rain": _rain_desc(float(precipitation), rain_prob),
             "rain_probability": rain_prob,
             "source": "open-meteo",
@@ -135,7 +153,19 @@ def _fetch_weather(city: str) -> dict | None:
 
 @router.get("")
 def get_weather(city: str = Query(default="福州", description="城市名，如 上海")):
-    """获取天气（温度 + 降雨）。优先 Open-Meteo 实时数据，失败降级 mock。"""
+    """获取天气（温度 + 降雨）。
+
+    支持任意城市名（含自由输入）：内置坐标表优先，未命中走 Open-Meteo Geocoding。
+
+    返回 source 语义：
+    - open-meteo      实时数据
+    - mock(fallback)  外部服务失败/超时，返回降级样例
+    - city_not_found  城市无法识别（拼写错误或不存在的城市），不返回伪造温度
+    """
+    city = (city or "").strip()
+    if not city:
+        return {"code": 400, "msg": "城市不能为空", "data": None}
+
     now = time.time()
     cached = _cache.get(city)
     if cached and now - cached[0] < _CACHE_TTL:
@@ -145,6 +175,16 @@ def get_weather(city: str = Query(default="福州", description="城市名，如
     if data is not None:
         _cache[city] = (now, data)
         return ok(data=data)
+
+    # 判断失败原因：能拿到坐标说明是外部服务问题，拿不到坐标说明城市名无法识别
+    if _geocode_city(city) is None:
+        return ok(data={
+            "city": city,
+            "temp": None,
+            "rain": "未知",
+            "source": "city_not_found",
+            "message": "未识别该城市，请检查城市名称或换一个城市",
+        })
 
     # 降级：返回 mock，source 标识非实时
     fallback = _MOCK_WEATHER | {"city": city, "source": "mock(fallback)"}

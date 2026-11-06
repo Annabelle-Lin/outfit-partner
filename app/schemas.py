@@ -37,12 +37,22 @@ class Preferences(BaseModel):
 class UserRegisterRequest(BaseModel):
     nickname: str = Field(..., min_length=2, max_length=20)
     avatar: str = ""
+    username: str | None = Field(default=None, max_length=32, description="登录账号，留空则用昵称")
+    password: str = Field(..., min_length=6, max_length=64, description="登录密码，至少 6 位")
+
+
+class UserLoginRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=32)
+    password: str = Field(..., min_length=1, max_length=64)
 
 
 class UserResponse(BaseModel):
     user_id: str
     nickname: str
     avatar: str = ""
+    city: str = ""
+    gender: str = ""
+    styles: list[str] = Field(default_factory=list)
     body: BodyInfo
     preferences: Preferences
 
@@ -50,6 +60,32 @@ class UserResponse(BaseModel):
 class UpdateBodyRequest(BaseModel):
     user_id: str
     body: BodyInfo
+
+
+class PreferencesUpdate(BaseModel):
+    """长期偏好（1-10），只传需要改的项。"""
+
+    color: int | None = Field(default=None, ge=1, le=10)
+    style: int | None = Field(default=None, ge=1, le=10)
+    comfort: int | None = Field(default=None, ge=1, le=10)
+    occasion: int | None = Field(default=None, ge=1, le=10)
+    fabric: int | None = Field(default=None, ge=1, le=10)
+
+
+class UserProfileUpdate(BaseModel):
+    """资料更新：全部字段可选，只更新传入的字段。
+
+    PUT /user/profile 的请求体。前端「编辑资料」弹窗提交这里。
+    """
+
+    user_id: str
+    nickname: str | None = Field(default=None, min_length=2, max_length=20)
+    avatar: str | None = None
+    city: str | None = Field(default=None, max_length=20)
+    gender: str | None = Field(default=None, max_length=10)
+    styles: list[str] | None = None
+    body: BodyInfo | None = None
+    preferences: PreferencesUpdate | None = None
 
 
 # ---------- 衣物 ----------
@@ -109,8 +145,11 @@ class ClothingListResponse(BaseModel):
 # ---------- 天气 ----------
 class WeatherInfo(BaseModel):
     city: str
-    temp: float
-    rain: str
+    # 允许为空：前端拿不到真实天气时不传天气，由后端按常用城市自行获取
+    temp: float | None = None
+    rain: str = "未知"
+    # 降雨概率（0-100），来自天气接口，用于判断是否需要避雨鞋履
+    rain_probability: float | None = None
     source: str = "mock"
 
 
@@ -185,14 +224,32 @@ class FeedbackSubmit(BaseModel):
 
 # ---------- 购前评估 ----------
 class TargetItem(BaseModel):
+    """拟购单品。
+
+    补齐 fabric/fit_snug/fit_silhouette/warmth_level/formality_level/season：
+    硬过滤（暖度、季节、场合、三色）需要这些判断依据，缺字段时
+    引擎只能拿默认值，规则会静默失效。
+    """
+
     name: str
     category: str
-    sub_category: str
+    sub_category: str = ""
     color: str = ""
     style: str = ""
     occasion: list[str] = Field(default_factory=list)
+    fabric: str = ""
+    fit_snug: str = ""
+    fit_silhouette: str = ""
+    # 1 最薄 - 5 最厚；留空时按子品类推断，并在结果里标注来源
+    warmth_level: int | None = None
+    formality_level: int | None = None
+    season: str = ""
 
 
 class PurchaseEvaluateRequest(BaseModel):
     user_id: str
     target_item: TargetItem
+    # 评估所处的季节与气温：不传则按季节默认值估算，并如实标注来源
+    season: str = ""
+    temperature: float | None = None
+    city: str = ""

@@ -13,6 +13,15 @@ from pathlib import Path
 from typing import Any
 
 from app import config
+from app.agent.garment_profile import normalize_category
+
+_CAT_ORDER = ("上装", "下装", "外套", "连衣裙", "鞋", "配饰", "套装")
+
+
+def _cat_rank(value: Any) -> int:
+    """搭配展示排序：上装→下装→外套→连衣裙→鞋→配饰。"""
+    c = normalize_category(value)
+    return _CAT_ORDER.index(c) if c in _CAT_ORDER else 99
 
 
 class RuleLoadError(Exception):
@@ -77,7 +86,12 @@ class RecommendContext:
 
     user_id: str
     occasion: str | None = None
-    weather_temp: float | None = 22.0
+    # None 表示没有拿到实时天气：此时不做天气硬过滤，也不给天气分，
+    # 避免用一个编造的 22℃ 去误导穿搭。
+    weather_temp: float | None = None
+    weather_rain: str | None = None
+    # 降雨概率（0-100）；None 表示未知。比「rain」文案更可靠
+    weather_rain_prob: float | None = None
     temp_pref: dict | None = None
     constraints: dict | None = None
     shown_outfit_ids: list | None = None
@@ -132,7 +146,8 @@ class RecommendEngine:
         """枚举搭配组合：上装+下装+鞋 / 连衣裙+鞋，可选外套/配饰。"""
         by_cat: dict[str, list[dict]] = {}
         for it in items:
-            by_cat.setdefault(it["category"], []).append(it)
+            # 品类归一：前端展示用「上衣/连衣装/套装」，引擎内部按「上装/连衣裙」枚举
+            by_cat.setdefault(normalize_category(it.get("category")), []).append(it)
 
         tops = by_cat.get("上装", [])
         bottoms = by_cat.get("下装", [])
@@ -179,18 +194,19 @@ class RecommendEngine:
     def _hard_filter(self, outfit: dict, ctx: RecommendContext) -> bool:
         """执行 8 条硬过滤规则。"""
         items = outfit["items"]
-        temp = ctx.weather_temp or 22.0
+        weather_known = ctx.weather_temp is not None
+        temp = ctx.weather_temp if weather_known else 22.0
         occasion = ctx.occasion or ""
         constraints = ctx.constraints or {}
 
         # F001 低温禁短装
-        if temp <= 5:
+        if weather_known and temp <= 5:
             forbid = {"短裤", "短袖", "吊带", "背心", "凉鞋"}
             if outfit["sub_categories"] & forbid:
                 return False
 
         # F002 高温禁厚装
-        if temp >= 28:
+        if weather_known and temp >= 28:
             forbid = {"羽绒服", "棉服", "大衣", "厚毛衣"}
             if outfit["sub_categories"] & forbid:
                 return False
@@ -228,6 +244,55 @@ class RecommendEngine:
         exclude_colors = set(constraints.get("exclude_colors", []))
         if exclude_colors and set(outfit["colors"]) & exclude_colors:
             return False
+
+        # 天气未知时不执行任何天气相关过滤
+        if not weather_known:
+            return True
+
+        # F009 高温禁厚（按暖度，而非仅子品类名）
+        warmth = [it.get("warmth_level", 3) for it in items]
+        if temp >= 27 and max(warmth or [3]) >= 4:
+            return False
+        # F010 低温禁薄
+        if temp <= 8 and sum(1 for w in warmth if w <= 1) >= 2:
+            return False
+
+        # F011 低温必须有保暖主力：≤10℃ 时整套必须有一件厚单品（暖度≥4），
+        # 否则「薄衬衫+薄裤+薄鞋」这类组合在冬天也会被算作合法搭配。
+        if temp <= 10 and max(warmth or [3]) < 4:
+            return False
+
+        # F012 高温整体轻薄：≥30℃ 时不允许任何单品偏厚（暖度≥3）把它们留在候选里，
+        # 否则平均暖度会被稀释，出现「夏天穿厚裤厚鞋」。
+        if temp >= 30 and max(warmth or [3]) >= 3:
+            return False
+
+        # F014 单品级季节错配直接淘汰：
+        # 平均值会被「一件极厚 + 一件极薄」互相抵消，导致 22℃ 出现羽绒服+凉鞋。
+        # 这里对每个单品单独校验，任一单品偏离理想暖度 ≥2 档即淘汰整套。
+        # 鞋履/配饰的暖度天然低于上装（皮鞋常见 2），拿上装标准卡会把
+        # 12℃ 这类常见天气整套判死（衬衫2/皮鞋2 对目标4.2 偏差2.2）。
+        target = self._target_warmth(temp)
+        for it in items:
+            if it.get("category") in ("鞋", "配饰"):
+                continue
+            if abs(it.get("warmth_level", 3) - target) >= 2.0:
+                return False
+
+        # F015 极厚单品有温度上限：羽绒服/厚毛衣（暖度 5）只在 15℃ 以下才合理。
+        # 仅靠「与目标值偏差」不够：18℃ 时目标 3.4，偏差 1.6 仍能漏过。
+        if temp > 15 and max(warmth or [3]) >= 5:
+            return False
+
+        # F016 最薄单品有温度下限：短袖/背心类（暖度 1）在 20℃ 以下不合常理。
+        if temp < 20 and min(warmth or [3]) <= 1:
+            return False
+
+        # F013 雨天禁凉鞋/拖鞋：湿滑且不合场合
+        if self._is_rainy(ctx):
+            wet_forbid = {"凉鞋", "拖鞋"}
+            if outfit["sub_categories"] & wet_forbid:
+                return False
 
         return True
 
@@ -295,25 +360,72 @@ class RecommendEngine:
                 score += 1.0
                 details.append({"rule_id": "S007", "name": "版型比例-上宽下窄", "delta": 1.0})
 
+        # S008 暖度与气温契合（天气是主导因素）
+        # 说明：只看平均暖度会出现「厚外套 + 薄T恤」互相抵消的情况，
+        # 因此这里同时看平均偏差与单品最大偏差，厚薄不匹配会被明显扣分。
+        if ctx.weather_temp is not None:
+            temp = float(ctx.weather_temp)
+            target = self._target_warmth(temp)
+            warmths = [it.get("warmth_level", 3) for it in items]
+            avg_w = sum(warmths) / max(len(warmths), 1)
+            gap = abs(avg_w - target)
+            worst = max((abs(w - target) for w in warmths), default=0.0)
+
+            if gap <= 0.5:
+                score += 9.0
+                details.append({"rule_id": "S008", "name": "暖度与气温高度契合", "delta": 9.0})
+            elif gap <= 1.0:
+                score += 5.0
+                details.append({"rule_id": "S008", "name": "暖度与气温基本契合", "delta": 5.0})
+            elif gap >= 2.0:
+                score -= 8.0
+                details.append({"rule_id": "S008", "name": "暖度与气温偏差较大", "delta": -8.0})
+
+            # 单品级别的不匹配：某一层明显穿错季节时额外扣分
+            if worst >= 2.0:
+                score -= 5.0
+                details.append({"rule_id": "S008", "name": "存在与气温明显不符的单品", "delta": -5.0})
+            elif worst >= 1.5:
+                score -= 2.0
+                details.append({"rule_id": "S008", "name": "个别单品厚薄偏离气温", "delta": -2.0})
+
+            # 极端温度额外加权
+            if temp <= 10 and min(warmths, default=3) >= 3:
+                score += 3.0
+                details.append({"rule_id": "S008", "name": "低温保暖充足", "delta": 3.0})
+            if temp >= 26 and max(warmths, default=3) <= 2:
+                score += 3.0
+                details.append({"rule_id": "S008", "name": "高温轻薄透气", "delta": 3.0})
+
+            # S010 雨天鞋履适配：有降雨时优先闭合式鞋
+            if self._is_rainy(ctx):
+                shoes = [it.get("sub_category", "") for it in items if it.get("category") == "鞋"]
+                if shoes and not any(s in ("凉鞋", "拖鞋") for s in shoes):
+                    score += 2.0
+                    details.append({"rule_id": "S010", "name": "雨天鞋履适配", "delta": 2.0})
+
         # S009 面料季节适配
-        temp = ctx.weather_temp or 22.0
-        if temp < 10:
+        temp = ctx.weather_temp if ctx.weather_temp is not None else None
+        if temp is None:
+            target_season = None
+        elif temp < 10:
             target_season = "冬"
         elif temp >= 28:
             target_season = "夏"
         else:
             target_season = "春秋"
-        for it in items:
-            item_season = it.get("season", "四季")
-            season_ok = (
-                item_season == "四季"
-                or item_season == target_season
-                or (target_season == "春秋" and item_season in ("春", "秋"))
-            )
-            if season_ok:
-                score += 0.5
-                details.append({"rule_id": "S009", "name": "面料季节适配", "delta": 0.5})
-                break
+        if target_season is not None:
+            for it in items:
+                item_season = it.get("season", "四季")
+                season_ok = (
+                    item_season == "四季"
+                    or item_season == target_season
+                    or (target_season == "春秋" and item_season in ("春", "秋"))
+                )
+                if season_ok:
+                    score += 0.5
+                    details.append({"rule_id": "S009", "name": "面料季节适配", "delta": 0.5})
+                    break
 
         # S011/S012 体型适配
         shape = ctx.body_shape
@@ -359,11 +471,15 @@ class RecommendEngine:
         items = outfit["items"]
         points = []
 
-        # 天气
-        temp = ctx.weather_temp or 22.0
+        # 天气：只在拿到真实气温时描述，绝不编造一个温度写进推荐理由
+        temp = ctx.weather_temp
         warm_items = [it["name"] for it in items if it.get("warmth_level", 3) >= 4]
         light_items = [it["name"] for it in items if it.get("warmth_level", 3) <= 2]
-        if temp <= 10 and warm_items:
+        if temp is None:
+            points.append({"type": "weather",
+                           "text": "本次未获取到实时天气，方案按你的衣橱厚薄与场合匹配。",
+                           "rule_id": "S009"})
+        elif temp <= 10 and warm_items:
             points.append({"type": "weather", "text": f"气温 {temp}°C，{warm_items[0]}等单品保暖性较好。", "rule_id": "S009"})
         elif temp >= 26 and light_items:
             points.append({"type": "weather", "text": f"气温 {temp}°C，{light_items[0]}等单品轻薄透气。", "rule_id": "S009"})
@@ -403,15 +519,133 @@ class RecommendEngine:
             summary += f"适合「{occasion}」"
         else:
             summary += "适合日常"
-        if temp:
+        if temp is not None:
             summary += f"，{temp}°C 穿着舒适。"
         else:
             summary += "。"
 
         return {"summary": summary, "points": points}
 
+    @staticmethod
+    def _is_rainy(ctx) -> bool:
+        """是否在下雨。
+
+        「rain」文案千奇百怪（晴 / 多云 / 小雨 / 中雨…），不能只靠黑名单，
+        所以同时看降雨概率：概率 ≥ 50 直接判为有雨；文案明确含雨/雪也算。
+        """
+        prob = getattr(ctx, "weather_rain_prob", None)
+        if prob is not None:
+            try:
+                if float(prob) >= 50:
+                    return True
+                if float(prob) < 20:
+                    return False
+            except (TypeError, ValueError):
+                pass
+        text = (getattr(ctx, "weather_rain", None) or "").strip()
+        if not text:
+            return False
+        if text in ("无降雨", "未知", "晴", "多云", "阴"):
+            return False
+        return any(k in text for k in ("雨", "雪", "雷", "阵雨", "storm", "rain", "snow"))
+
+    @staticmethod
+    def _target_warmth(temp: float) -> float:
+        """按气温给出理想平均暖度（1 最薄 - 5 最厚）。"""
+        if temp is None:
+            return 3.0
+        if temp <= 5:
+            return 5.0
+        if temp <= 12:
+            return 4.2
+        if temp <= 18:
+            return 3.4
+        if temp <= 24:
+            return 2.8
+        if temp <= 29:
+            return 2.0
+        return 1.4
+
+    def refine(self, base_items: list[dict], target_category: str,
+               all_items: list[dict], ctx: RecommendContext) -> dict[str, Any]:
+        """锁定一套方案，仅替换目标品类单品，返回单套修改版。"""
+        base_ids = {it["item_id"] for it in base_items}
+        # 候选：同品类、可穿、且不在原方案中
+        cands = [
+            it for it in all_items
+            if it.get("category") == target_category and it["item_id"] not in base_ids
+        ]
+        if not cands:
+            return {"outfit": None, "reason": f"衣橱里没有可替换的「{target_category}」，建议先补充衣物。"}
+
+        # 天气未知时不做暖度定向：目标取基准方案均值，避免用假温度挑单品
+        base_w = sum(it.get("warmth_level", 3) for it in base_items) / max(len(base_items), 1)
+        temp = ctx.weather_temp
+        target = self._target_warmth(temp) if temp is not None else base_w
+        exclude_colors = set((ctx.constraints or {}).get("exclude_colors", []))
+        if exclude_colors:
+            cands = [c for c in cands if c.get("color") not in exclude_colors] or cands
+
+        kept = [it for it in base_items if it.get("category") != target_category]
+
+        def trial_score(cand):
+            trial_items = kept + [cand]
+            avg_w = sum(it.get("warmth_level", 3) for it in trial_items) / max(len(trial_items), 1)
+            s = -abs(avg_w - target) * 6.0
+            # 与保留单品的色彩协调
+            base_colors = [it.get("color", "") for it in kept if it.get("color")]
+            c = cand.get("color", "")
+            if c and c in base_colors:
+                s += 2.0
+            main_colors = set([it.get("color") for it in trial_items if it.get("category") != "配饰" and it.get("color")])
+            if len(main_colors) <= 3:
+                s += 2.0
+            return s
+
+        cands.sort(key=trial_score, reverse=True)
+        best = cands[0]
+        new_items = kept + [best]
+
+        for it in new_items:
+            it["score"] = round(60.0 + trial_score(best), 1)
+        new_items.sort(key=lambda it: _cat_rank(it.get("category")))
+
+        old_item = next((it for it in base_items if it.get("category") == target_category), None)
+        avg_w = sum(it.get("warmth_level", 3) for it in new_items) / max(len(new_items), 1)
+        if temp is not None:
+            points = [{"type": "weather",
+                       "text": f"气温 {temp}°C，替换后整体暖度 {avg_w:.1f}/5，"
+                               f"{'厚度合适' if abs(avg_w - target) <= 1 else '偏差较大'}。",
+                       "rule_id": "S008"}]
+        else:
+            points = [{"type": "weather",
+                       "text": f"替换后整体暖度 {avg_w:.1f}/5，与原方案保持一致。",
+                       "rule_id": "S008"}]
+        if old_item:
+            points.append({"type": "refine",
+                           "text": f"保留原方案其余 {len(kept)} 件，把「{old_item.get('name')}」换成「{best.get('name')}」。",
+                           "rule_id": "R001"})
+
+        return {
+            "outfit": {
+                "items": new_items,
+                "score": round(60.0 + trial_score(best), 1),
+                "fingerprint": "refine_" + "_".join(sorted(it["item_id"] for it in new_items)),
+                "categories": {it["category"] for it in new_items},
+                "sub_categories": {it.get("sub_category") for it in new_items},
+                "colors": [it.get("color", "") for it in new_items if it.get("color")],
+            },
+            "kept_count": len(kept),
+            "from_name": old_item.get("name") if old_item else "",
+            "to_name": best.get("name"),
+            "points": points,
+        }
+
+    def to_response(self, outfit: dict) -> dict[str, Any]:
+        return self._to_response(outfit)
+
     def _to_response(self, outfit: dict) -> dict[str, Any]:
-        items = sorted(outfit["items"], key=lambda it: ("上装", "下装", "外套", "连衣裙", "鞋", "配饰").index(it["category"]) if it["category"] in ("上装", "下装", "外套", "连衣裙", "鞋", "配饰") else 99)
+        items = sorted(outfit["items"], key=lambda it: _cat_rank(it.get("category")))
         return {
             "outfit_id": outfit["fingerprint"],
             "items": [

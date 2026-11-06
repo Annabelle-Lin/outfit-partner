@@ -255,32 +255,33 @@ HTTP 状态码：成功统一返回 `200 OK`，异常返回 `4xx/5xx`（FastAPI 
 
 ---
 
-## 3. 接口清单（共 21 个）
+## 3. 接口清单（共 23 个）
 
 | # | 模块 | 方法 | 路径 | 状态 | 说明 |
 |---|------|------|------|------|------|
 | 1 | 运维 | GET | `/health` | ✅ 已实现 | 存活探测 |
 | 2 | 用户 | POST | `/api/v1/user/register` | ✅ 已实现 | 注册/登录 |
 | 3 | 用户 | GET | `/api/v1/user/profile` | ✅ 已实现 | 用户信息 |
-| 4 | 用户 | PUT | `/api/v1/user/body` | ✅ 已实现 | 更新体型 |
-| 5 | 用户 | GET | `/api/v1/user/preferences` | ✅ 已实现 | 长期偏好 |
-| 6 | 衣物 | GET | `/api/v1/clothing/meta` | ✅ 已实现 | 标签枚举 |
-| 7 | 衣物 | POST | `/api/v1/clothing` | ✅ 已实现 | 新增衣物 |
-| 8 | 衣物 | GET | `/api/v1/clothing` | ✅ 已实现 | 衣橱列表 |
-| 9 | 衣物 | GET | `/api/v1/clothing/{item_id}` | ✅ 已实现 | 单件详情 |
-| 10 | 衣物 | PUT | `/api/v1/clothing/{item_id}` | ✅ 已实现 | 修改衣物 |
-| 11 | 衣物 | DELETE | `/api/v1/clothing/{item_id}` | ✅ 已实现 | 删除衣物 |
-| 12 | 衣物 | POST | `/api/v1/clothing/import` | ✅ 已实现 | Excel 导入 |
-| 13 | 衣物 | GET | `/api/v1/clothing/template` | ✅ 已实现 | 导入模板 |
-| 14 | 天气 | GET | `/api/v1/weather` | ✅ 已实现（Open-Meteo） | 当前天气，支持 `?city=` |
-| 15 | 对话 | POST | `/api/v1/chat/session` | ✅ 已实现 | 创建会话 |
-| 16 | 对话 | POST | `/api/v1/chat/{session_id}/message` | ✅ 已实现 | 发送消息 |
-| 17 | 对话 | GET | `/api/v1/chat/{session_id}` | ✅ 已实现 | 会话状态 |
-| 18 | 对话 | POST | `/api/v1/chat/{session_id}/end` | ✅ 已实现 | 结束会话 |
-| 19 | 反馈 | POST | `/api/v1/feedback` | ✅ 已实现 | 提交反馈 |
-| 20 | 反馈 | GET | `/api/v1/feedback/history` | ✅ 已实现 | 反馈历史 |
-| 21 | 购前 | POST | `/api/v1/purchase/evaluate` | ✅ 已实现 | 新品评估 |
-| 22 | 购前 | GET | `/api/v1/purchase/history` | ✅ 已实现 | 评估历史 |
+| 4 | 用户 | PUT | `/api/v1/user/profile` | ✅ 已实现 | 更新资料（昵称/城市/性别/风格/体型/偏好） |
+| 5 | 用户 | PUT | `/api/v1/user/body` | ✅ 已实现 | 更新体型 |
+| 6 | 用户 | GET | `/api/v1/user/preferences` | ✅ 已实现 | 长期偏好 |
+| 7 | 衣物 | GET | `/api/v1/clothing/meta` | ✅ 已实现 | 标签枚举 |
+| 8 | 衣物 | POST | `/api/v1/clothing` | ✅ 已实现 | 新增衣物 |
+| 9 | 衣物 | GET | `/api/v1/clothing` | ✅ 已实现 | 衣橱列表 |
+| 10 | 衣物 | GET | `/api/v1/clothing/{item_id}` | ✅ 已实现 | 单件详情 |
+| 11 | 衣物 | PUT | `/api/v1/clothing/{item_id}` | ✅ 已实现 | 修改衣物 |
+| 12 | 衣物 | DELETE | `/api/v1/clothing/{item_id}` | ✅ 已实现 | 删除衣物 |
+| 13 | 衣物 | POST | `/api/v1/clothing/import` | ✅ 已实现 | Excel 导入 |
+| 14 | 衣物 | GET | `/api/v1/clothing/template` | ✅ 已实现 | 导入模板 |
+| 15 | 天气 | GET | `/api/v1/weather` | ✅ 已实现（Open-Meteo） | 当前天气，支持 `?city=` |
+| 16 | 对话 | POST | `/api/v1/chat/session` | ✅ 已实现 | 创建会话 |
+| 17 | 对话 | POST | `/api/v1/chat/{session_id}/message` | ✅ 已实现 | 发送消息 |
+| 18 | 对话 | GET | `/api/v1/chat/{session_id}` | ✅ 已实现 | 会话状态 |
+| 19 | 对话 | POST | `/api/v1/chat/{session_id}/end` | ✅ 已实现 | 结束会话 |
+| 20 | 反馈 | POST | `/api/v1/feedback` | ✅ 已实现 | 提交反馈 |
+| 21 | 反馈 | GET | `/api/v1/feedback/history` | ✅ 已实现 | 反馈历史 |
+| 22 | 购前 | POST | `/api/v1/purchase/evaluate` | ✅ 已实现 | 新品评估 |
+| 23 | 购前 | GET | `/api/v1/purchase/history` | ✅ 已实现 | 评估历史 |
 
 ---
 
@@ -338,6 +339,54 @@ HTTP 状态码：成功统一返回 `200 OK`，异常返回 `4xx/5xx`（FastAPI 
 **查询参数**：`user_id`
 
 **响应**：`User` 对象。
+
+#### PUT `/user/profile`
+
+**用途**：更新用户资料。前端「个人资料」页的「编辑资料」弹窗提交到这里，支持昵称、城市、性别、常用风格、体型与长期偏好的统一更新。
+
+**请求体**（所有字段均可选，只更新传入的字段）：
+
+```json
+{
+  "user_id": "u_123456",
+  "nickname": "林晓",
+  "avatar": "",
+  "city": "上海",
+  "gender": "female",
+  "styles": ["通勤", "简约", "休闲"],
+  "body": {
+    "shape": "standard",
+    "height_cm": 168,
+    "weight_kg": 0,
+    "shoulder_width": "",
+    "waist": "",
+    "hip": ""
+  },
+  "preferences": {
+    "color": 6,
+    "style": 7
+  }
+}
+```
+
+**字段说明**：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `user_id` | string | 是 | 目标用户 |
+| `nickname` | string | 否 | 2-20 字符 |
+| `avatar` | string | 否 | 头像 URL 或首字母占位 |
+| `city` | string | 否 | 常用城市，影响天气与推荐 |
+| `gender` | string | 否 | `male` / `female` |
+| `styles` | string[] | 否 | 常用风格，多选，全量覆盖 |
+| `body` | object | 否 | 体型，结构同 `PUT /user/body` |
+| `preferences` | object | 否 | 长期偏好，各维度 1-10，只传需改项 |
+
+**响应**：更新后的完整 `User` 对象。
+
+**错误**：用户不存在返回 404。
+
+**持久化**：写入 `users` 表的 `nickname` / `avatar` / `city` / `gender` / `styles` / 体型列 / 偏好列，重启后仍保留。历史库启动时由 `_ensure_user_columns()` 自动补列，无需手动迁移。
 
 #### PUT `/user/body`
 
