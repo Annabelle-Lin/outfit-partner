@@ -12,12 +12,12 @@ GET    /clothing/meta      获取标签枚举
 """
 from io import BytesIO
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook, load_workbook
 from sqlalchemy.orm import Session
 
-from app import schemas, utils
+from app import schemas, security, utils
 from app.agent.engine import rule_repo
 from app.api import ok
 from app.db import ClothingItem, User, get_db
@@ -253,7 +253,7 @@ def list_items(
     user_id: str,
     category: str | None = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=1000),
     db: Session = Depends(get_db),
 ):
     """衣橱列表，支持按品类筛选。"""
@@ -271,18 +271,22 @@ def list_items(
 
 
 @router.get("/{item_id}", response_model=schemas.APIResponse)
-def get_item(item_id: str, db: Session = Depends(get_db)):
+def get_item(item_id: str, request: Request, db: Session = Depends(get_db)):
     item = db.query(ClothingItem).filter(ClothingItem.item_id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="衣物不存在")
+    # 只能查看自己衣橱里的衣物
+    security.assert_owner(item.user_id, request)
     return ok(data=_item_to_response(item))
 
 
 @router.put("/{item_id}", response_model=schemas.APIResponse)
-def update_item(item_id: str, req: schemas.ClothingItemUpdate, db: Session = Depends(get_db)):
+def update_item(item_id: str, req: schemas.ClothingItemUpdate, request: Request,
+                db: Session = Depends(get_db)):
     item = db.query(ClothingItem).filter(ClothingItem.item_id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="衣物不存在")
+    security.assert_owner(item.user_id, request)
 
     update_data = req.model_dump(exclude_unset=True)
     for k, v in update_data.items():
@@ -292,11 +296,29 @@ def update_item(item_id: str, req: schemas.ClothingItemUpdate, db: Session = Dep
     return ok(data=_item_to_response(item))
 
 
+@router.delete("", response_model=schemas.APIResponse)
+def delete_all_items(user_id: str, db: Session = Depends(get_db)):
+    """清空该用户的全部衣物（不可撤销）。
+
+    返回删除数量。历史方案使用衣物快照，不受影响。
+    """
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    q = db.query(ClothingItem).filter(ClothingItem.user_id == user_id)
+    total = q.count()
+    q.delete(synchronize_session=False)
+    db.commit()
+    return ok(data={"deleted": total, "remaining": 0})
+
+
 @router.delete("/{item_id}", response_model=schemas.APIResponse)
-def delete_item(item_id: str, db: Session = Depends(get_db)):
+def delete_item(item_id: str, request: Request, db: Session = Depends(get_db)):
     item = db.query(ClothingItem).filter(ClothingItem.item_id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="衣物不存在")
+    security.assert_owner(item.user_id, request)
     db.delete(item)
     db.commit()
     return ok(data={"deleted": True})

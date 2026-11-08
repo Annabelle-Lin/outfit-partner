@@ -40,6 +40,10 @@ class User(Base):
     nickname = Column(String, nullable=False)
     avatar = Column(String, default="")
 
+    # 登录凭证：username 唯一（应用层保证），password_hash 为不可逆摘要
+    username = Column(String, index=True, default="")
+    password_hash = Column(String, default="")
+
     # 体型
     body_shape = Column(String, default="")
     height_cm = Column(Integer, default=0)
@@ -47,6 +51,11 @@ class User(Base):
     shoulder_width = Column(String, default="")
     waist = Column(String, default="")
     hip = Column(String, default="")
+
+    # 资料扩展：常用城市 / 性别 / 常用风格（多选，JSON 数组）
+    city = Column(String, default="")
+    gender = Column(String, default="")
+    styles = Column(JSON, default=list)
 
     # 长期偏好 1-10
     pref_color = Column(Integer, default=5)
@@ -101,7 +110,10 @@ class ChatSession(Base):
     occasion = Column(String, default="")
     weather_city = Column(String, default="")
     weather_temp = Column(Float, default=22.0)
-    weather_rain = Column(String, default="无降雨")
+    weather_rain = Column(String, default="未知")
+    # 降雨概率（0-100）：比天气文案更可靠，用于判断是否需要避雨鞋履
+    weather_rain_prob = Column(Float, nullable=True)
+    weather_source = Column(String, default="")  # passed / realtime / unavailable
 
     temp_pref_color = Column(String, default="")  # 亮色/暗色
     temp_pref_style = Column(String, default="")  # 基础款/设计款
@@ -146,6 +158,8 @@ class FeedbackRecord(Base):
     rating = Column(Integer, default=1)  # 2=喜欢 1=一般 0=不喜欢
     tags = Column(JSON, default=list)
     comment = Column(String, default="")
+    # 2.3 偏好可撤销：记录这条反馈对 5 维偏好造成的增量，撤销时可精确回退
+    evidence = Column(JSON, default=dict)
 
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -180,6 +194,69 @@ class OutfitRecord(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+def _ensure_user_columns():
+    """轻量迁移：给已存在的 users 表补齐新增列（SQLite 不支持 ADD COLUMN IF NOT EXISTS）。"""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return
+    existing = {c["name"] for c in inspector.get_columns("users")}
+    wanted = {
+        "city": "VARCHAR",
+        "gender": "VARCHAR",
+        "styles": "JSON",
+        "username": "VARCHAR",
+        "password_hash": "VARCHAR",
+    }
+    with engine.begin() as conn:
+        for name, coltype in wanted.items():
+            if name not in existing:
+                conn.execute(text(f'ALTER TABLE users ADD COLUMN {name} {coltype}'))
+
+
+def _ensure_session_columns():
+    """轻量迁移：给已存在的 chat_sessions 表补齐新增列。"""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    if "chat_sessions" not in inspector.get_table_names():
+        return
+    existing = {c["name"] for c in inspector.get_columns("chat_sessions")}
+    wanted = {
+        "weather_rain_prob": "FLOAT",
+    }
+    with engine.begin() as conn:
+        for name, coltype in wanted.items():
+            if name not in existing:
+                conn.execute(text(f'ALTER TABLE chat_sessions ADD COLUMN {name} {coltype}'))
+
+
 def init_db():
-    """启动时建表。"""
+    """启动时建表，并补齐历史库缺失的新列。"""
     Base.metadata.create_all(bind=engine)
+    _ensure_user_columns()
+    _ensure_session_columns()
+
+# ---------- 轻量 schema 迁移（2.3 新增 evidence 列） ----------
+def _ensure_columns() -> None:
+    """老库补列。create_all 不会给已存在的表加列，这里显式 ALTER 一次。"""
+    from sqlalchemy import text
+
+    try:
+        with engine.connect() as conn:
+            rows = [r for r in conn.execute(text("PRAGMA table_info(feedback_records)"))]
+            cols = [r[1] for r in rows]
+            if cols and "evidence" not in cols:
+                conn.execute(text("ALTER TABLE feedback_records ADD COLUMN evidence JSON"))
+                conn.commit()
+            rows = [r for r in conn.execute(text("PRAGMA table_info(chat_sessions)"))]
+            scols = [r[1] for r in rows]
+            if scols and "weather_source" not in scols:
+                conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN weather_source VARCHAR DEFAULT ''"))
+                conn.commit()
+    except Exception:
+        pass
+
+
+_ensure_columns()
