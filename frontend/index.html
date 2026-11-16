@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>衣橱 · 智能穿搭 Agent</title>
+<title>今遂 · 智能穿搭</title>
+<link rel="icon" type="image/png" href="logo-icon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Noto+Serif+SC:wght@500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -12,32 +13,32 @@
    设计方向：编辑感 · 精致时尚科技 —— 暖象牙纸面 + 陶土赭红 + 鼠尾草绿
    ============================================================ */
 :root{
-  --paper:#EDE7DB;
-  --paper-2:#E4DDCF;
-  --paper-3:#D9D1C2;
-  --card:#F7F3EA;
-  --card-2:#F1EBDF;
-  --ink:#3E3A34;
-  --ink-2:#6C6458;
-  --ink-3:#9B9184;
-  --clay:#B5836E;
-  --clay-deep:#9C6C57;
-  --clay-soft:#E7D3C7;
-  --sage:#9CAF88;
-  --sage-soft:#E3E8DA;
-  --blush:#D8C2BC;
-  --gold:#C0A272;
-  --line:#DDD3C2;
-  --line-soft:#EBE3D4;
-  --ok:#8AA47E;
-  --warn:#C09A5A;
-  --bad:#B5705C;
-  --shadow-sm:0 1px 2px rgba(62,58,52,.05),0 2px 8px rgba(62,58,52,.05);
-  --shadow-md:0 2px 6px rgba(62,58,52,.06),0 12px 32px rgba(62,58,52,.10);
-  --shadow-lg:0 8px 24px rgba(62,58,52,.10),0 24px 64px rgba(62,58,52,.16);
-  --r-sm:12px;
-  --r-md:18px;
-  --r-lg:26px;
+  --paper:#F8F7F3;
+  --paper-2:#EFEEF7;
+  --paper-3:#E3E2F0;
+  --card:#FFFFFF;
+  --card-2:#F5F4FB;
+  --ink:#2E2E3A;
+  --ink-2:#55566B;
+  --ink-3:#9A9BB0;
+  --clay:#7C6CF0;
+  --clay-deep:#6455DC;
+  --clay-soft:#E8E5FE;
+  --sage:#8CCB63;
+  --sage-soft:#EAF7DD;
+  --blush:#FFB6B6;
+  --gold:#FFD66B;
+  --line:#E3E1EE;
+  --line-soft:#EEECF6;
+  --ok:#7CB84F;
+  --warn:#E0A63A;
+  --bad:#E0655E;
+  --shadow-sm:0 1px 2px rgba(46,46,58,.04),0 4px 14px rgba(46,46,58,.06);
+  --shadow-md:0 2px 8px rgba(46,46,58,.06),0 16px 40px rgba(46,46,58,.12);
+  --shadow-lg:0 8px 24px rgba(46,46,58,.10),0 28px 72px rgba(46,46,58,.18);
+  --r-sm:14px;
+  --r-md:22px;
+  --r-lg:28px;
   --serif:"Fraunces","Noto Serif SC",serif;
   --sans:"Noto Sans SC","Manrope",-apple-system,sans-serif;
 }
@@ -63,8 +64,8 @@ body::after{
 
 /* ---------- 侧边栏 ---------- */
 .sidebar{
-  background:linear-gradient(180deg,#3A342D 0%,#2E2A25 100%);
-  color:#EDE6D8;
+  background:linear-gradient(180deg,#2E2E3A 0%,#232330 100%);
+  color:#EAEAF4;
   padding:30px 22px;
   display:flex;flex-direction:column;gap:8px;
   position:relative;z-index:10;
@@ -72,7 +73,7 @@ body::after{
 }
 .sidebar::before{
   content:"";position:absolute;top:-120px;right:-90px;width:280px;height:280px;
-  background:radial-gradient(circle at center,rgba(181,131,110,.5),transparent 65%);
+  background:radial-gradient(circle at center,rgba(124,108,240,.5),transparent 65%);
   filter:blur(6px);
 }
 .brand{display:flex;align-items:center;gap:12px;margin-bottom:30px;position:relative}
@@ -80,24 +81,24 @@ body::after{
   width:42px;height:42px;border-radius:12px;flex:none;
   background:linear-gradient(135deg,var(--clay),var(--clay-deep));
   display:grid;place-items:center;color:#fff;
-  box-shadow:0 6px 18px rgba(181,131,110,.45);
+  box-shadow:0 6px 18px rgba(124,108,240,.45);
 }
 .brand-mark svg{width:22px;height:22px}
 .brand-name{font-family:var(--serif);font-size:20px;font-weight:600;letter-spacing:.5px}
-.brand-sub{font-size:10px;letter-spacing:3px;color:#A99C87;text-transform:uppercase;margin-top:-2px}
+.brand-sub{font-size:10px;letter-spacing:3px;color:#8F90A8;text-transform:uppercase;margin-top:-2px}
 
 .nav{display:flex;flex-direction:column;gap:3px}
-.nav-label{font-size:10px;letter-spacing:2.5px;color:#77694F;text-transform:uppercase;padding:12px 12px 6px}
+.nav-label{font-size:10px;letter-spacing:2.5px;color:#6E6F88;text-transform:uppercase;padding:12px 12px 6px}
 .nav-item{
   display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;
-  color:#C9BEAA;font-size:14px;font-weight:500;cursor:pointer;transition:.2s;
+  color:#B9BAD2;font-size:14px;font-weight:500;cursor:pointer;transition:.2s;
   border:1px solid transparent;
 }
 .nav-item svg{width:19px;height:19px;flex:none;opacity:.85}
-.nav-item:hover{background:rgba(255,255,255,.05);color:#F3ECDD}
+.nav-item:hover{background:rgba(255,255,255,.05);color:#F1F1FA}
 .nav-item.active{
-  background:linear-gradient(90deg,rgba(181,131,110,.22),rgba(181,131,110,.05));
-  color:#F6EEDD;border-color:rgba(181,131,110,.35);
+  background:linear-gradient(90deg,rgba(124,108,240,.22),rgba(124,108,240,.05));
+  color:#F1F1FA;border-color:rgba(124,108,240,.35);
 }
 .nav-item.active svg{color:var(--clay)}
 .nav-item .badge{margin-left:auto;background:var(--clay);color:#fff;font-size:10px;padding:1px 7px;border-radius:99px}
@@ -105,16 +106,16 @@ body::after{
 .sidebar-foot{margin-top:auto;position:relative}
 .user-chip{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;background:rgba(255,255,255,.05);cursor:pointer;transition:.2s}
 .user-chip:hover{background:rgba(255,255,255,.09)}
-.avatar{width:38px;height:38px;border-radius:50%;flex:none;background:linear-gradient(135deg,var(--sage),#7C8A68);display:grid;place-items:center;color:#fff;font-family:var(--serif);font-size:16px;font-weight:600}
+.avatar{width:38px;height:38px;border-radius:50%;flex:none;background:#fff;display:grid;place-items:center;color:#fff;font-family:var(--serif);font-size:16px;font-weight:600}
 .user-chip .name{font-size:13px;font-weight:600}
-.user-chip .meta{font-size:11px;color:#A99C87}
+.user-chip .meta{font-size:11px;color:#8F90A8}
 
 /* ---------- 主区域 ---------- */
 .main{position:relative;overflow-y:auto;overflow-x:hidden;scroll-behavior:smooth}
 .main-inner{max-width:1120px;margin:0 auto;padding:34px 40px 96px}
 
 /* 顶部条（移动端） */
-.topbar{display:none;position:sticky;top:0;z-index:30;background:rgba(244,238,227,.86);backdrop-filter:blur(12px);border-bottom:1px solid var(--line-soft);padding:12px 18px;align-items:center;gap:12px}
+.topbar{display:none;position:sticky;top:0;z-index:30;background:rgba(248,247,243,.86);backdrop-filter:blur(12px);border-bottom:1px solid var(--line-soft);padding:12px 18px;align-items:center;gap:12px}
 .topbar .brand-mark{width:34px;height:34px;border-radius:10px}
 .topbar .ttl{font-family:var(--serif);font-size:17px;font-weight:600}
 
@@ -127,7 +128,7 @@ body::after{
 .eyebrow{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--clay);font-weight:600}
 h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spacing:.3px;line-height:1.2;margin-top:6px}
 /* 电子衣橱标题右侧的衣物总数（替代原侧边栏徽标） */
-.title-count{display:inline-block;margin-left:12px;vertical-align:middle;font-family:var(--sans,inherit);font-size:13px;font-weight:500;letter-spacing:0;color:var(--ink-3);background:rgba(181,131,110,.12);border:1px solid rgba(181,131,110,.24);padding:3px 11px;border-radius:99px;line-height:1.5}
+.title-count{display:inline-block;margin-left:12px;vertical-align:middle;font-family:var(--sans,inherit);font-size:13px;font-weight:500;letter-spacing:0;color:var(--ink-3);background:rgba(124,108,240,.12);border:1px solid rgba(124,108,240,.24);padding:3px 11px;border-radius:99px;line-height:1.5}
 .page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:26px;flex-wrap:wrap}
 .lead{color:var(--ink-3);font-size:14px;line-height:1.75;max-width:560px;margin-top:8px;text-wrap:pretty}
 
@@ -137,17 +138,17 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
   padding:12px 20px;border-radius:14px;transition:.2s;white-space:nowrap;line-height:1;
 }
 .btn svg{width:17px;height:17px}
-.btn-primary{background:linear-gradient(135deg,var(--clay),var(--clay-deep));color:#fff;box-shadow:0 8px 20px rgba(181,131,110,.32)}
-.btn-primary:hover{transform:translateY(-1px);box-shadow:0 12px 26px rgba(181,131,110,.4)}
+.btn-primary{background:linear-gradient(135deg,var(--clay),var(--clay-deep));color:#fff;box-shadow:0 8px 20px rgba(124,108,240,.32)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 12px 26px rgba(124,108,240,.4)}
 .btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
 .btn-ghost{background:transparent;color:var(--ink-2);border:1px solid var(--line)}
-.btn-danger{background:linear-gradient(135deg,#B5705C,#8E4F3E);color:#fff;box-shadow:0 8px 20px rgba(140,79,62,.28)}
+.btn-danger{background:linear-gradient(135deg,#E0655E,#C24A45);color:#fff;box-shadow:0 8px 20px rgba(224,101,94,.28)}
 .btn-danger:hover{filter:brightness(1.04)}
 .btn-ghost:hover{background:var(--card);border-color:var(--ink-3)}
 .btn-soft{background:var(--card);color:var(--ink);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
 .btn-soft:hover{border-color:var(--ink-3)}
 .btn-sm{padding:9px 14px;font-size:13px;border-radius:11px}
-.btn-dark{background:var(--ink);color:#F3EBDD}
+.btn-dark{background:var(--ink);color:#F1F1FA}
 .btn-dark:hover{background:#000}
 
 .chip{
@@ -156,7 +157,7 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
   cursor:pointer;transition:.18s;
 }
 .chip:hover{border-color:var(--ink-3);transform:translateY(-1px)}
-.chip.on{background:var(--ink);color:#F3EBDD;border-color:var(--ink)}
+.chip.on{background:var(--ink);color:#F1F1FA;border-color:var(--ink)}
 .chip svg{width:14px;height:14px}
 
 /* 城市：热门标签 + 自由输入 */
@@ -180,7 +181,7 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
   background:var(--card);border:1px solid var(--line);border-radius:13px;padding:12px 14px;
   transition:.18s;outline:none;
 }
-.input:focus,.select:focus,.textarea:focus{border-color:var(--clay);box-shadow:0 0 0 3px rgba(181,131,110,.12)}
+.input:focus,.select:focus,.textarea:focus{border-color:var(--clay);box-shadow:0 0 0 3px rgba(124,108,240,.12)}
 .textarea{resize:vertical;min-height:88px}
 .select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239B9184' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:40px}
 .hint{font-size:12px;color:var(--ink-3);margin-top:6px}
@@ -195,17 +196,17 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
 .gupload-hint{font-size:11px!important;font-weight:400!important;color:var(--ink-3)!important}
 .gupload-preview{position:relative;height:170px}
 .gupload-preview img{width:100%;height:170px;object-fit:cover;display:block}
-.gupload-del{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;border:none;background:rgba(62,58,52,.62);color:#F3EEDD;display:grid;place-items:center;cursor:pointer}
+.gupload-del{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;border:none;background:rgba(46,46,58,.62);color:#F3EEDD;display:grid;place-items:center;cursor:pointer}
 .gupload-del svg{width:14px;height:14px}
 .color-swatch{width:34px;height:34px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:.15s;position:relative}
 .color-swatch:hover{transform:scale(1.08)}
 .color-swatch.on{border-color:var(--ink);box-shadow:0 0 0 3px rgba(255,255,255,.5) inset}
 
 /* ============ 视图：登录 ============ */
-.auth-wrap{min-height:100%;display:grid;place-items:center;padding:30px}
+.auth-wrap{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:30px}
 .auth-card{width:100%;max-width:420px;background:var(--card);border:1px solid var(--line-soft);border-radius:28px;box-shadow:var(--shadow-lg);padding:40px 38px;position:relative;overflow:hidden}
 .auth-card::before{content:"";position:absolute;top:-60px;right:-60px;width:180px;height:180px;background:radial-gradient(circle,var(--clay-soft),transparent 70%)}
-.auth-logo{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,var(--clay),var(--clay-deep));display:grid;place-items:center;color:#fff;margin-bottom:20px;box-shadow:0 10px 24px rgba(181,131,110,.4)}
+.auth-logo{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,var(--clay),var(--clay-deep));display:grid;place-items:center;color:#fff;margin-bottom:20px;box-shadow:0 10px 24px rgba(124,108,240,.4)}
 .auth-logo svg{width:28px;height:28px}
 .auth-title{font-family:var(--serif);font-size:28px;font-weight:600}
 .auth-sub{color:var(--ink-3);font-size:14px;margin:6px 0 26px}
@@ -218,17 +219,17 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
 .seg{display:flex;gap:10px}
 .seg-option{flex:1;text-align:center;padding:14px;border-radius:13px;border:1px solid var(--line);cursor:pointer;font-size:15px;font-weight:600;color:var(--ink-2);transition:.18s;background:var(--card)}
 .seg-option:hover{border-color:var(--ink-3)}
-.seg-option.on{background:var(--ink);color:#F3EBDD;border-color:var(--ink)}
+.seg-option.on{background:var(--ink);color:#F1F1FA;border-color:var(--ink)}
 .style-grid{display:flex;flex-wrap:wrap;gap:9px}
 
 /* ============ 视图：首页 ============ */
-.weather{position:relative;border-radius:var(--r-lg);padding:26px 28px;color:#F5EEDD;overflow:hidden;background:linear-gradient(120deg,#3A342D 0%,#4A4138 55%,#5A4F42 100%)}
-.weather::after{content:"";position:absolute;right:-40px;top:-40px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(192,162,114,.3),transparent 70%)}
+.weather{position:relative;border-radius:var(--r-lg);padding:26px 28px;color:#F1F1FA;overflow:hidden;background:linear-gradient(120deg,#2E2E3A 0%,#3A3A48 55%,#464654 100%)}
+.weather::after{content:"";position:absolute;right:-40px;top:-40px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(167,181,255,.35),transparent 70%)}
 .weather-top{display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1;flex-wrap:wrap;gap:14px}
 .weather-city{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;opacity:.92}
 .weather-city svg{width:16px;height:16px}
 .weather-cond{display:flex;align-items:center;gap:8px;font-family:var(--serif);font-size:17px;margin-top:4px;opacity:.95}
-.weather-icon{display:inline-flex;align-items:center;color:#F5EEDD;opacity:.8}
+.weather-icon{display:inline-flex;align-items:center;color:#F1F1FA;opacity:.8}
 .weather-icon svg{width:20px;height:20px}
 .weather-now{position:relative;z-index:1;text-align:right}
 .weather-temp{font-family:var(--serif);font-size:64px;line-height:1;font-weight:600}
@@ -255,9 +256,16 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
 .rate-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-size:12px;font-weight:600;color:var(--ink-2);cursor:pointer;transition:.16s}
 .rate-btn svg{width:15px;height:15px;flex:none;margin-top:-1px}
 .rate-btn:hover{border-color:var(--ink-3)}
-.rate-btn.on-like{background:#EAF0E3;color:var(--ok);border-color:#C8D5B8}
-.rate-btn.on-mid{background:#F6ECDA;color:var(--warn);border-color:#E3CD9F}
-.rate-btn.on-bad{background:#F6E2DC;color:var(--bad);border-color:#E4BCAF}
+.rate-btn.on-like{background:#EDF7E3;color:var(--ok);border-color:#C4DFA8}
+.rate-btn.on-mid{background:#FBF1DC;color:var(--warn);border-color:#E8D3A0}
+.rate-btn.on-bad{background:#FBEAE8;color:var(--bad);border-color:#EBBDB6}
+.rate-extra{margin-top:8px;padding:10px;border-radius:12px;background:var(--card-2);border:1px solid var(--line-soft)}
+.rate-extra-hint{font-size:11px;color:var(--ink-3);margin-bottom:7px}
+.rate-extra-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.rate-extra-tags .chip{font-size:11px;padding:5px 9px}
+.rate-extra-input{width:100%;box-sizing:border-box;padding:7px 9px;border:1px solid var(--line);border-radius:8px;font-size:12px;background:#fff;color:var(--ink);font-family:inherit}
+.rate-extra-input:focus{outline:none;border-color:var(--clay)}
+.rate-extra-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:8px}
 
 .entry-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .entry-card{display:flex;align-items:center;gap:14px;padding:20px;cursor:pointer;transition:.2s}
@@ -271,12 +279,12 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
 .cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
 .cat-card{cursor:pointer;padding:18px;transition:.2s;position:relative;overflow:hidden}
 .cat-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md)}
-.cat-card.on{background:var(--ink);color:#F3EBDD;border-color:var(--ink)}
+.cat-card.on{background:var(--ink);color:#F1F1FA;border-color:var(--ink)}
 .cat-card .c-ico{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;margin-bottom:12px}
 .cat-card .c-ico svg{width:20px;height:20px}
 .cat-card .c-name{font-family:var(--serif);font-size:16px;font-weight:600}
 .cat-card .c-count{font-size:12px;color:var(--ink-3)}
-.cat-card.on .c-count{color:#B7AC9B}
+.cat-card.on .c-count{color:#9E9FB8}
 .cat-card.has-sub::after{content:'';position:absolute;right:14px;bottom:14px;width:6px;height:6px;border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;transform:rotate(-45deg);opacity:.45}
 
 /* 二级品类卡片 */
@@ -286,10 +294,10 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
   .sub-card{padding:11px 8px}.sub-card .s-name{font-size:12.5px}}
 .sub-card{cursor:pointer;padding:13px 12px;border-radius:12px;border:1px solid var(--line-soft);background:var(--card);transition:.18s;text-align:center}
 .sub-card:hover{border-color:var(--clay);transform:translateY(-2px);box-shadow:var(--shadow-sm)}
-.sub-card.on{background:var(--ink);color:#F3EBDD;border-color:var(--ink)}
+.sub-card.on{background:var(--ink);color:#F1F1FA;border-color:var(--ink)}
 .sub-card .s-name{font-size:13.5px;font-weight:600;line-height:1.4}
 .sub-card .s-count{font-size:11.5px;color:var(--ink-3);margin-top:3px}
-.sub-card.on .s-count{color:#B7AC9B}
+.sub-card.on .s-count{color:#9E9FB8}
 
 /* 品类面包屑 */
 .cat-crumb{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:13px;color:var(--ink-3);flex-wrap:wrap}
@@ -309,11 +317,11 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
 .garment-img .swatch{position:absolute;inset:0}
 .garment-img .g-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .garment-img .fab{position:absolute;inset:0;background-size:7px 7px;opacity:.45;mix-blend-mode:overlay}
-.garment-img .g-cat{position:absolute;top:12px;left:12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;background:rgba(62,58,52,.55);color:#F3EBDD;padding:3px 8px;border-radius:99px;backdrop-filter:blur(4px)}
+.garment-img .g-cat{position:absolute;top:12px;left:12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;background:rgba(46,46,58,.55);color:#F1F1FA;padding:3px 8px;border-radius:99px;backdrop-filter:blur(4px)}
 .garment-status{position:absolute;top:12px;right:12px;font-size:10px;font-weight:600;padding:3px 9px;border-radius:99px}
-.garment-status.ok{background:#EAF0E3;color:var(--ok)}
-.garment-status.wash{background:#F6ECDA;color:var(--warn)}
-.garment-status.off{background:#F6E2DC;color:var(--bad)}
+.garment-status.ok{background:#EDF7E3;color:var(--ok)}
+.garment-status.wash{background:#FBF1DC;color:var(--warn)}
+.garment-status.off{background:#FBEAE8;color:var(--bad)}
 .garment-body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:8px;flex:1}
 .garment-name{font-family:var(--serif);font-size:16px;font-weight:600;line-height:1.3}
 .garment-meta{display:flex;flex-wrap:wrap;gap:5px}
@@ -321,7 +329,7 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
 .gfoot-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:7px;border-radius:9px;border:1px solid var(--line);background:var(--card);font-size:12px;font-weight:600;color:var(--ink-2);cursor:pointer;transition:.15s}
 .gfoot-btn svg{width:14px;height:14px}
 .gfoot-btn:hover{border-color:var(--ink-3)}
-.gfoot-btn.danger:hover{background:#F6E2DC;color:var(--bad);border-color:#E4BCAF}
+.gfoot-btn.danger:hover{background:#FBEAE8;color:var(--bad);border-color:#EBBDB6}
 
 /* ============ 视图：AI 对话 ============ */
 .chat-shell{display:flex;flex-direction:column;height:calc(100vh - 160px);min-height:520px}
@@ -330,16 +338,16 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
 .msg.user{align-self:flex-end;flex-direction:row-reverse}
 .msg-ava{width:36px;height:36px;border-radius:12px;flex:none;display:grid;place-items:center;font-family:var(--serif);font-weight:600}
 .msg.ai .msg-ava{background:linear-gradient(135deg,var(--clay),var(--clay-deep));color:#fff}
-.msg.user .msg-ava{background:var(--sage-soft);color:#3E4634}
+.msg.user .msg-ava{background:var(--sage-soft);color:#3A4A2C}
 .msg-bubble{background:var(--card);border:1px solid var(--line-soft);border-radius:16px;padding:13px 16px;font-size:14px;line-height:1.65;box-shadow:var(--shadow-sm);color:var(--ink)}
-.msg.user .msg-bubble{background:var(--ink);color:#F3EBDD;border-color:var(--ink)}
+.msg.user .msg-bubble{background:var(--ink);color:#F1F1FA;border-color:var(--ink)}
 .chat-outfit{margin-top:12px;display:grid;gap:10px}
 .chat-outfit-card{background:var(--card-2);border:1px solid var(--line-soft);border-radius:14px;padding:14px}
 
 .quick-row{display:flex;gap:8px;flex-wrap:wrap;padding:12px 0}
 .chat-input-bar{display:flex;gap:10px;align-items:flex-end;padding-top:12px;border-top:1px solid var(--line-soft)}
 .chat-input-bar .input{flex:1;border-radius:16px;padding:14px 16px;resize:none;min-height:52px}
-.send-btn{width:52px;height:52px;border-radius:16px;border:none;background:linear-gradient(135deg,var(--clay),var(--clay-deep));color:#fff;cursor:pointer;display:grid;place-items:center;box-shadow:0 8px 18px rgba(181,131,110,.35);transition:.2s;flex:none}
+.send-btn{width:52px;height:52px;border-radius:16px;border:none;background:linear-gradient(135deg,var(--clay),var(--clay-deep));color:#fff;cursor:pointer;display:grid;place-items:center;box-shadow:0 8px 18px rgba(124,108,240,.35);transition:.2s;flex:none}
 .send-btn:hover{transform:translateY(-1px)}
 .send-btn svg{width:20px;height:20px}
 
@@ -368,7 +376,7 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
 .hist-list{display:flex;flex-direction:column;gap:12px}
 .chat-quota{display:flex;justify-content:flex-end;align-items:center;gap:6px;font-size:12px;color:var(--ink-3);padding:2px 2px 8px}
 .chat-quota b{color:var(--clay-deep);font-weight:600}
-.degrade-tag{display:inline-block;font-size:11px;line-height:1.6;padding:0 6px;margin-right:6px;border-radius:6px;background:#f1ede6;color:#8a7455;vertical-align:1px}
+.degrade-tag{display:inline-block;font-size:11px;line-height:1.6;padding:0 6px;margin-right:6px;border-radius:6px;background:#EFEDF7;color:#6E63B0;vertical-align:1px}
 .hist-item{display:flex;align-items:center;gap:16px;padding:16px 18px}
 .hist-ico{width:42px;height:42px;border-radius:12px;flex:none;display:grid;place-items:center}
 .hist-ico svg{width:20px;height:20px}
@@ -378,13 +386,13 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
 
 /* ============ 视图：我的 ============ */
 .me-head{display:flex;gap:20px;align-items:center;padding:24px;margin-bottom:20px}
-.me-avatar{width:72px;height:72px;border-radius:22px;background:linear-gradient(135deg,var(--sage),#7C8A68);display:grid;place-items:center;color:#fff;font-family:var(--serif);font-size:30px;font-weight:600}
+.me-avatar{width:72px;height:72px;border-radius:22px;background:#fff;display:grid;place-items:center;color:#fff;font-family:var(--serif);font-size:30px;font-weight:600}
 .pref-card{padding:20px}
 .pref-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px dashed var(--line-soft)}
 .pref-row:last-child{border-bottom:none}
 
 /* ---------- 弹窗 ---------- */
-.modal-back{position:fixed;inset:0;background:rgba(30,24,16,.45);backdrop-filter:blur(3px);z-index:100;display:none;place-items:center;padding:20px}
+.modal-back{position:fixed;inset:0;background:rgba(30,28,40,.45);backdrop-filter:blur(3px);z-index:100;display:none;place-items:center;padding:20px}
 .modal-back.open{display:grid;animation:fadeIn .2s}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .modal{width:100%;max-width:520px;max-height:88vh;overflow-y:auto;background:var(--card);border-radius:24px;box-shadow:var(--shadow-lg);padding:28px;animation:pop .3s cubic-bezier(.2,.7,.2,1)}
@@ -393,7 +401,7 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
 /* 二次确认弹窗：与站内视觉一致，替代原生 confirm */
 .confirm-modal{max-width:430px;padding:26px 28px 22px}
 .confirm-modal .cf-icon{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;margin-bottom:14px;background:var(--sage-soft);color:var(--ok)}
-.confirm-modal .cf-icon.danger{background:#F2E1DA;color:var(--bad)}
+.confirm-modal .cf-icon.danger{background:#FBEAE8;color:var(--bad)}
 .confirm-modal .cf-icon svg{width:22px;height:22px}
 .confirm-modal .cf-title{font-family:var(--serif);font-size:20px;font-weight:600;color:var(--ink);margin-bottom:8px}
 .confirm-modal .cf-desc{font-size:13.5px;line-height:1.75;color:var(--ink-2);white-space:pre-line}
@@ -405,11 +413,11 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
 .modal-close svg{width:16px;height:16px}
 
 /* ---------- 提示 toast ---------- */
-.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#F3EBDD;padding:12px 22px;border-radius:99px;font-size:14px;box-shadow:var(--shadow-lg);z-index:200;opacity:0;pointer-events:none;transition:.3s}
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#F1F1FA;padding:12px 22px;border-radius:99px;font-size:14px;box-shadow:var(--shadow-lg);z-index:200;opacity:0;pointer-events:none;transition:.3s}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
 /* ---------- 底部导航（移动端） ---------- */
-.bottomnav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:40;background:rgba(251,247,238,.92);backdrop-filter:blur(14px);border-top:1px solid var(--line-soft);padding:6px 8px calc(6px + env(safe-area-inset-bottom))}
+.bottomnav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:40;background:rgba(255,255,255,.92);backdrop-filter:blur(14px);border-top:1px solid var(--line-soft);padding:6px 8px calc(6px + env(safe-area-inset-bottom))}
 .bottomnav .bn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;border-radius:10px;cursor:pointer;color:var(--ink-3);font-size:10px;font-weight:600;transition:.15s}
 .bottomnav .bn svg{width:21px;height:21px}
 .bottomnav .bn.active{color:var(--clay)}
@@ -443,6 +451,73 @@ body.gate .topbar{display:none}
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-thumb{background:var(--paper-3);border-radius:99px;border:2px solid var(--paper)}
 ::-webkit-scrollbar-thumb:hover{background:var(--ink-3)}
+
+/* ---------- 品牌标识（今遂 JINSUI） ---------- */
+.brand-mark,.topbar .brand-mark,.auth-logo{background:#fff;overflow:hidden;box-shadow:0 2px 12px rgba(46,46,58,.18)}
+.brand-mark img,.topbar .brand-mark img,.auth-logo img{width:100%;height:100%;object-fit:cover;display:block}
+.avatar img,.me-avatar img{width:100%;height:100%;object-fit:contain;display:block}
+.mascot-hero{display:block;width:176px;height:auto;margin:-2px 0 2px;filter:drop-shadow(0 12px 26px rgba(124,108,240,.20))}
+.mascot-side{width:124px;height:auto;flex:none;filter:drop-shadow(0 10px 22px rgba(124,108,240,.16))}
+
+/* ---------- 状态样式：空 / 加载 / 错误 ---------- */
+.state-empty,.state-loading,.state-error{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:40px 20px;border-radius:var(--r-md);font-size:14px;line-height:1.7;color:var(--ink-3)}
+.state-empty{background:var(--card-2);border:1px dashed var(--line)}
+.state-empty .s-ico{font-size:34px;line-height:1;opacity:.85}
+.state-loading{background:var(--card);border:1px solid var(--line-soft)}
+.state-loading::before{content:"";width:26px;height:26px;border:3px solid var(--clay-soft);border-top-color:var(--clay);border-radius:50%;animation:spin .9s linear infinite}
+.state-error{background:#FBEAE8;border:1px solid #EBBDB6;color:var(--bad)}
+.state-error .s-ico{font-size:28px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.garment-grid .state-empty{grid-column:1/-1}
+/* 对话「正在思考」省略号动画 */
+.typing{display:inline-flex;align-items:center;gap:3px;color:var(--ink-3);font-size:13px}
+.typing .tdot{width:5px;height:5px;border-radius:50%;background:var(--ink-3);display:inline-block;animation:blink 1.2s infinite}
+.typing .tdot:nth-child(2){animation-delay:.2s}
+.typing .tdot:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+
+/* ---------- 无障碍焦点态（精修） ---------- */
+:focus-visible{outline:2px solid var(--clay);outline-offset:2px;border-radius:4px}
+.btn:focus-visible,.nav-item:focus-visible,.chip:focus-visible,.seg-option:focus-visible{outline:2px solid var(--clay);outline-offset:2px}
+
+/* ---------- 响应式：平板 768 / 手机 390 精修 ---------- */
+@media (max-width:768px){
+  .outfit-grid,.entry-grid,.garment-grid,.cat-grid{grid-template-columns:repeat(2,1fr);gap:14px}
+  .weather{padding:20px 22px}
+  .weather-temp{font-size:46px}
+  .weather-temp sup{font-size:20px}
+  .weather-stats{gap:12px}
+  .profile-card{padding:28px 22px}
+  .me-head{flex-wrap:wrap}
+}
+@media (max-width:390px){
+  .outfit-grid,.entry-grid,.garment-grid{grid-template-columns:1fr}
+  .outfit-items{gap:6px 4px}
+  .gitem .thumb{width:44px;height:44px}
+  .gitem .cat{font-size:9px}
+  h1.page-title{font-size:24px}
+  .weather{padding:18px}
+  .weather-temp{font-size:42px}
+  .weather-stats{gap:8px}
+  .wstat{font-size:12px}
+  .modal{padding:24px 16px}
+  .auth-card{padding:30px 20px}
+  .main-inner{padding:16px 14px 112px}
+  .garment-img{height:130px}
+  .mascot-hero{width:132px}
+  .mascot-side{width:92px}
+}
+
+/* ---------- 组件形状精修：卡片/按钮/表单 圆角·阴影·边框·hover ---------- */
+.outfit-card,.entry-card,.cat-card,.sub-card{transition:transform .22s cubic-bezier(.2,.7,.2,1),box-shadow .22s,border-color .22s}
+.outfit-card:hover,.entry-card:hover,.cat-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-md);border-color:rgba(124,108,240,.28)}
+.sub-card:hover{border-color:rgba(124,108,240,.34);transform:translateY(-3px);box-shadow:var(--shadow-sm)}
+.btn{transition:transform .18s cubic-bezier(.2,.7,.2,1),box-shadow .18s,background .18s,border-color .18s,opacity .18s}
+.btn-primary:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 14px 30px rgba(124,108,240,.42)}
+.btn-ghost:hover,.btn-soft:hover{transform:translateY(-1px)}
+.input,.select,.textarea{border-radius:14px}
+.input:hover,.select:hover,.textarea:hover{border-color:rgba(124,108,240,.38)}
+.section-label{margin:38px 0 16px}
 </style>
 </head>
 <body>
@@ -451,12 +526,10 @@ body.gate .topbar{display:none}
   <!-- ============ 侧边栏 ============ -->
   <aside class="sidebar">
     <div class="brand">
-      <div class="brand-mark">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c-1 2-3 2.6-3 5a3 3 0 0 0 6 0c0-2.4-2-3-3-5Z"/><path d="M9 8v4l-2.5 8a2 2 0 0 0 1.9 2.6h7.2a2 2 0 0 0 1.9-2.6L15 12V8"/></svg>
-      </div>
+      <div class="brand-mark"><img src="logo-icon.png" alt="今遂 JINSUI" /></div>
       <div>
-        <div class="brand-name">衣橱 Agent</div>
-        <div class="brand-sub">Smart Wardrobe</div>
+        <div class="brand-name">今遂</div>
+        <div class="brand-sub">JINSUI</div>
       </div>
     </div>
 
@@ -491,7 +564,7 @@ body.gate .topbar{display:none}
 
     <div class="sidebar-foot">
       <div class="user-chip" onclick="showView('me')">
-        <div class="avatar" id="sb-avatar">林</div>
+        <div class="avatar" id="sb-avatar"><img src="mascot.png" alt="遂遂" /></div>
         <div>
           <div class="name" id="sb-name">林晓</div>
           <div class="meta" id="sb-meta">上海 · 通勤 · 简约</div>
@@ -503,10 +576,8 @@ body.gate .topbar{display:none}
   <!-- ============ 主区域 ============ -->
   <main class="main" id="main">
     <div class="topbar">
-      <div class="brand-mark">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c-1 2-3 2.6-3 5a3 3 0 0 0 6 0c0-2.4-2-3-3-5Z"/><path d="M9 8v4l-2.5 8a2 2 0 0 0 1.9 2.6h7.2a2 2 0 0 0 1.9-2.6L15 12V8"/></svg>
-      </div>
-      <div class="ttl">衣橱 Agent</div>
+      <div class="brand-mark"><img src="logo-icon.png" alt="今遂 JINSUI" /></div>
+      <div class="ttl">今遂</div>
     </div>
     <div class="main-inner">
 
@@ -514,10 +585,9 @@ body.gate .topbar{display:none}
       <section class="view" id="view-auth">
         <div class="auth-wrap">
           <div class="auth-card">
-            <div class="auth-logo">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c-1 2-3 2.6-3 5a3 3 0 0 0 6 0c0-2.4-2-3-3-5Z"/><path d="M9 8v4l-2.5 8a2 2 0 0 0 1.9 2.6h7.2a2 2 0 0 0 1.9-2.6L15 12V8"/></svg>
-            </div>
-            <div class="auth-title">衣橱 Agent</div>
+            <img class="mascot-hero" src="mascot.png" alt="遂遂" />
+            <div class="auth-logo"><img src="logo-icon.png" alt="今遂 JINSUI" /></div>
+            <div class="auth-title">今遂 JINSUI</div>
             <div class="auth-sub">根据你的衣橱、天气与场景，生成真正能穿的穿搭建议。</div>
             <div class="auth-toggle">
               <button class="on" id="tab-login" onclick="authTab('login')">登录</button>
@@ -554,10 +624,13 @@ body.gate .topbar{display:none}
 
       <!-- ========== 首次资料 ========== -->
       <section class="view" id="view-setup">
-        <div style="padding:24px 0 40px">
-          <div class="eyebrow">欢迎使用</div>
-          <h1 class="page-title" style="margin-top:4px">先了解一下你</h1>
-          <p class="lead">只需两步，我们就能为你生成贴合天气与场合的穿搭建议。性别与常用城市为必填，其余可稍后补充。</p>
+        <div style="padding:24px 0 40px;display:flex;align-items:center;justify-content:space-between;gap:22px;flex-wrap:wrap">
+          <div style="flex:1;min-width:260px">
+            <div class="eyebrow">欢迎使用</div>
+            <h1 class="page-title" style="margin-top:4px">先了解一下你</h1>
+            <p class="lead">只需两步，我们就能为你生成贴合天气与场合的穿搭建议。性别与常用城市为必填，其余可稍后补充。</p>
+          </div>
+          <img class="mascot-side" src="mascot.png" alt="遂遂" />
         </div>
         <div class="profile-card">
           <div class="field">
@@ -660,13 +733,13 @@ body.gate .topbar{display:none}
             <div class="entry-txt"><div class="t">AI 对话穿搭</div><div class="d">描述场景，随时调整方案</div></div>
           </div>
           <div class="card entry-card" onclick="showView('wardrobe')">
-            <div class="entry-ico" style="background:var(--sage-soft);color:#55624A">
+            <div class="entry-ico" style="background:var(--sage-soft);color:#5E9A3A">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c-1 2-3 2.6-3 5a3 3 0 0 0 6 0c0-2.4-2-3-3-5Z"/><path d="M9 8v4l-2.5 8a2 2 0 0 0 1.9 2.6h7.2a2 2 0 0 0 1.9-2.6L15 12V8"/></svg>
             </div>
             <div class="entry-txt"><div class="t">电子衣橱</div><div class="d">管理你的每一件衣物</div></div>
           </div>
           <div class="card entry-card" onclick="showView('eval')">
-            <div class="entry-ico" style="background:#F0E6D2;color:var(--gold)">
+            <div class="entry-ico" style="background:#FFF3D6;color:var(--gold)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 7v6c0 5 4 8 9 9 5-1 9-4 9-9V7l-9-4Z"/><path d="M9 12l2 2 4-4"/></svg>
             </div>
             <div class="entry-txt"><div class="t">购前评估</div><div class="d">看看新品是否值得入手</div></div>
@@ -846,7 +919,7 @@ body.gate .topbar{display:none}
         </div>
 
         <div class="card me-head">
-          <div class="me-avatar" id="me-avatar">林</div>
+          <div class="me-avatar" id="me-avatar"><img src="mascot.png" alt="遂遂" /></div>
           <div style="flex:1">
             <div id="me-nickname" style="font-family:var(--serif);font-size:22px;font-weight:600">林晓</div>
             <div id="me-meta" style="font-size:13px;color:var(--ink-3);margin-top:2px">上海 · 女 · 168 cm · 标准</div>
@@ -1116,7 +1189,7 @@ body.gate .topbar{display:none}
    ============================================================ */
 const COLOR_MAP = {
   '黑':'#3E3A34','白':'#F4F1EA','灰':'#A9A39A','米白':'#E8E0D2','棕':'#8A6F5A',
-  '蓝':'#7C8FA0','牛仔蓝':'#6B8292','绿':'#9CAF88','红':'#B5705C','粉':'#D4B5B0','黄':'#C9B37A',
+  '蓝':'#7C8FA0','牛仔蓝':'#6B8292','绿':'#9CAF88','红':'#E0655E','粉':'#D4B5B0','黄':'#C9B37A',
   '深蓝':'#3C4A5A','卡其':'#BFAE8E','紫':'#9A8CA8','酒红':'#7E3B3B','藏蓝':'#38445C',
   '浅蓝':'#A8C3D6','墨绿':'#4F6B57','橙':'#C88A56','奶茶':'#C9B49A','银':'#C4C4C0','黑灰':'#57534C','碎花':'#D8C7B8'
 };
@@ -1160,9 +1233,9 @@ const CAT_ICON = {
   '鞋子':'M3 18c1 0 2-1 3-1 2 0 3 1 4 1s2-1 4-1 2 1 4 1 2-1 3-1',
   '配饰':'M12 3a4 4 0 0 0-4 4h8a4 4 0 0 0-4-4Z'
 };
-const COLOR_ICON = { 'T恤':'#B5836E','衬衫':'#9CAF88','裤子':'#7C8FA0','裙子':'#B5705C','风衣':'#8A6F5A','毛衣':'#C0A272','鞋子':'#8A8378','配饰':'#A395AE' };
+const COLOR_ICON = { 'T恤':'#7C6CF0','衬衫':'#7CB54A','裤子':'#6FB3E8','裙子':'#E07A96','风衣':'#D8A93C','毛衣':'#6A6A7E','鞋子':'#8A8378','配饰':'#9B8FD0' };
 /* 大品类配色与图标 */
-const BIG_COLOR = { '上衣':'#B5836E','下装':'#7C8FA0','连衣装':'#B5705C','套装':'#8A6F5A','外套':'#9CAF88','鞋':'#8A8378','配饰':'#A395AE' };
+const BIG_COLOR = { '上衣':'#7C6CF0','下装':'#6FB3E8','连衣装':'#E07A96','套装':'#D8A93C','外套':'#7CB54A','鞋':'#8A8378','配饰':'#9B8FD0' };
 const BIG_ICON = {
   '上衣':'M12 3c-1 2-3 2.6-3 5a3 3 0 0 0 6 0c0-2.4-2-3-3-5Z',
   '下装':'M7 3h10l-1 3v3L9 9V6L8 3Z',
@@ -1369,13 +1442,88 @@ function renderOutfits(){
     grid.appendChild(el);
   });
 }
-function rateOutfit(btn, kind){
-  const group = btn.parentElement;
-  group.querySelectorAll('.rate-btn').forEach(b=>b.className='rate-btn');
-  btn.classList.add('on-'+kind);
-  const label = {like:'喜欢',mid:'一般',bad:'不喜欢'}[kind];
-  toast('已记录：' + label);
+/* 反馈：点「一般 / 不喜欢」后展开原因面板，标签与手写文字一并提交，
+   后端据此做维度级偏好调整；点「喜欢」无需追问，直接落库。 */
+const RATE_TAGS = ['颜色不喜欢', '版型不合适', '太冷', '不适合场合'];
+
+function _rateOutfitId(btn, outfitId){
+  if (outfitId) return outfitId;
+  const card = btn.closest('.outfit-card');
+  const grid = document.getElementById('outfit-grid');
+  if (card && grid){
+    const idx = Array.prototype.indexOf.call(grid.children, card);
+    if (idx >= 0 && typeof W_OUTFIT_IDS !== 'undefined') return W_OUTFIT_IDS[outfitIndex + idx] || '';
+  }
+  return (typeof W_OUTFIT_IDS !== 'undefined' && W_OUTFIT_IDS[0]) || '';
 }
+
+function _rateSubmit(btn, kind, outfitId, tags, comment, panel){
+  const label = { like:'喜欢', mid:'一般', bad:'不喜欢' }[kind];
+  const rating = { like:2, mid:1, bad:0 }[kind];
+  _api('/api/v1/feedback', _json({
+    user_id: W_USER_ID,
+    session_id: W_SESSION_ID || '',
+    outfit_id: _rateOutfitId(btn, outfitId),
+    rating: rating,
+    tags: tags || [],
+    comment: comment || ''
+  })).then(function(r){
+    if (r && r.code === 0){
+      const p = (r.data && r.data.preferences) || {};
+      toast('已记录：' + label + '，画像已更新（风格偏好 ' + (p.style || '-') + '/10）');
+      if (panel && panel.parentNode) panel.remove();
+    } else {
+      toast('已记录：' + label);
+    }
+  }).catch(function(e){
+    toast('评价提交失败：' + (e && e.message ? e.message : '网络错误'));
+  });
+}
+
+rateOutfit = function(btn, kind, outfitId){
+  const group = btn.parentElement;
+  group.querySelectorAll('.rate-btn').forEach(function(b){ b.className = 'rate-btn'; });
+  btn.classList.add('on-' + kind);
+
+  if (!W_USER_ID){
+    if (typeof toast === 'function') toast('后端未连接，本次评价未保存');
+    return;
+  }
+
+  // 喜欢：不追问原因，直接提交
+  if (kind === 'like'){ _rateSubmit(btn, kind, outfitId, [], ''); return; }
+
+  // 一般 / 不喜欢：展开原因面板
+  const card = btn.closest('.outfit-card') || btn.closest('.chat-outfit-card');
+  if (!card) return;
+  const old = card.querySelector('.rate-extra');
+  if (old) old.remove();
+
+  const panel = document.createElement('div');
+  panel.className = 'rate-extra';
+  panel.innerHTML = '<div class="rate-extra-hint">哪里不合适？选一下，下次就会避开</div>'
+    + '<div class="rate-extra-tags">'
+    + RATE_TAGS.map(function(t){ return '<div class="chip" data-v="' + t + '">' + t + '</div>'; }).join('')
+    + '</div>'
+    + '<input class="rate-extra-input" type="text" placeholder="也可以写一句，例如：袖子太长" />'
+    + '<div class="rate-extra-actions">'
+    + '<button class="btn btn-soft btn-sm" data-act="cancel">跳过</button>'
+    + '<button class="btn btn-primary btn-sm" data-act="submit">提交</button>'
+    + '</div>';
+  card.appendChild(panel);
+
+  panel.querySelectorAll('.chip').forEach(function(c){
+    c.onclick = function(){ c.classList.toggle('on'); };
+  });
+  panel.querySelector('[data-act="cancel"]').onclick = function(){ panel.remove(); };
+  panel.querySelector('[data-act="submit"]').onclick = function(){
+    const tags = [];
+    panel.querySelectorAll('.chip.on').forEach(function(c){ tags.push(c.dataset.v); });
+    const input = panel.querySelector('.rate-extra-input');
+    const comment = ((input && input.value) || '').trim();
+    _rateSubmit(btn, kind, outfitId, tags, comment, panel);
+  };
+};
 function shuffleOutfits(){
   outfitIndex = (outfitIndex + 3) % outfits.length;
   renderOutfits();
@@ -1474,7 +1622,7 @@ function renderGarments(){
   _setWardrobeTotal(garments.length);
   const grid = $('#garment-grid'); grid.innerHTML = '';
   if(!list.length){
-    grid.innerHTML = `<div class="card" style="grid-column:1/-1;padding:40px;text-align:center;color:var(--ink-3)">没有符合条件的衣物，试试调整筛选或新增一件。</div>`;
+    grid.innerHTML = `<div class="state-empty"><span class="s-ico">👕</span>没有符合条件的衣物，试试调整筛选或新增一件。</div>`;
     return;
   }
   list.forEach(g=>{
@@ -2329,7 +2477,8 @@ function _fmtTime(s){
 }
 
 function _histEmpty(wrap, text){
-  wrap.innerHTML = '<div class="hint" style="padding:28px 0;text-align:center">' + _esc(text) + '</div>';
+  const isErr = /失败|未连接|错误/.test(text);
+  wrap.innerHTML = '<div class="' + (isErr ? 'state-error' : 'state-empty') + '"><span class="s-ico">' + (isErr ? '⚠️' : '🗂️') + '</span>' + _esc(text) + '</div>';
 }
 
 // 1.1 点开历史会话：拉取完整 messages 并回放
@@ -2399,7 +2548,7 @@ function _reloadEvalParams(target, record){
 async function renderHistory(){
   const wrap = $('#hist-list');
   const tab = state.historyTab || 'rec';
-  wrap.innerHTML = '<div class="hint" style="padding:20px 0">加载中…</div>';
+  wrap.innerHTML = '<div class="state-loading">加载中…</div>';
 
   const uid = W_USER_ID || localStorage.getItem('wardrobe_uid');
   if (!uid){ _histEmpty(wrap, '后端未连接，无法加载历史'); return; }
@@ -3160,7 +3309,7 @@ async function loadFeedbackEffects(target){
   if (!container) return;
   const uid = W_USER_ID || localStorage.getItem('wardrobe_uid');
   if (!uid){ container.textContent = '后端未连接，无法加载偏好影响'; return; }
-  container.innerHTML = '<div class="hint" style="padding:12px 0">加载中…</div>';
+  container.innerHTML = '<div class="state-loading" style="padding:22px 12px">加载中…</div>';
   try {
     const r = await _api('/api/v1/feedback/effects?user_id='
       + encodeURIComponent(uid) + '&limit=30');
@@ -3418,7 +3567,7 @@ sendChat = async function(){
   }
   addMsg('user', _esc(text));
   inp.value = '';
-  const msg = addMsg('ai', '<span class="hint">正在思考…</span>');
+  const msg = addMsg('ai', '<span class="typing">正在思考<span class="tdot"></span><span class="tdot"></span><span class="tdot"></span></span>');
   const bubble = msg.querySelector('.msg-bubble');
   let sid;
   try { sid = await _ensureChatSession(); }
@@ -3685,7 +3834,7 @@ async function _loadMeStats(){
 function renderMe(u){
   if (!u) return;
   const nick = u.nickname || '未命名';
-  _meSetText('me-avatar', nick.slice(0, 1));
+  // 头像已改为品牌吉祥物，不再用昵称首字覆盖
   _meSetText('me-nickname', nick);
 
   const body = u.body || {};
@@ -3706,7 +3855,7 @@ function renderMe(u){
   _meSetText('me-style-hint', styles.length ? styles.join(' · ') : '尚未设置');
 
   // 同步侧边栏底部用户卡片，保持与资料页一致
-  _meSetText('sb-avatar', nick.slice(0, 1));
+  // 头像已改为品牌 logo 图标，不再用昵称首字覆盖
   _meSetText('sb-name', nick);
   const sbParts = [];
   if (u.city) sbParts.push(u.city);
