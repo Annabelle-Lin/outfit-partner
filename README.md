@@ -21,7 +21,11 @@ wardrobe-agent/
 │   ├── body_rules.json    # 体型适配规则（5 种体型）
 │   └── clothing_meta.json # 衣物标签枚举（前后端共用）
 ├── data/                  # 知识库文档（S3 产出的领域资料，切片后供知识问答检索）
-├── API_CONTRACT.md        # 接口契约 v0.2（前端可据此联调）
+├── docs/                  # 文档
+│   ├── design-submission/ # 课程设计交付文档（28 份）
+│   ├── frontend-contract/ # 前端契约基线（校验脚本读取）
+│   ├── 项目文档/          # API_CONTRACT.md、启动操作.md
+│   └── 外包交付/          # 前端美化说明书、外包验收清单
 ├── requirements.txt
 └── .env.example
 ```

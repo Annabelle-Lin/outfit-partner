@@ -15,9 +15,9 @@ from sqlalchemy.orm import Session
 
 from app import config, schemas, security, utils
 from app.agent.engine import RecommendContext
-from app.api.weather import _fetch_weather
+from app.api.weather import _fetch_weather, _fetch_forecast, forecast_summary, _CITY_COORDS, _geocode_city
 from app.agent.kb import KnowledgeIndex
-from app.agent.llm import ask, reply as llm_reply
+from app.agent.llm import ask, classify_intent, reply as llm_reply
 from app.api import ok
 from app.db import ChatMessage, ChatSession, ClothingItem, OutfitRecord, User, get_db
 
@@ -157,6 +157,28 @@ def _clarify_response(session: ChatSession, needs: list[str] | None = None) -> d
             "missing": needs,
             "question": question,
             "options": options,
+        },
+    }
+
+
+def _travel_clarify_response(session: ChatSession, text: str = "") -> dict:
+    """旅游场景缺目的地时反问：去哪个城市、玩几天。"""
+    days = _extract_travel_days(text)
+    session.constraints = session.constraints or {}
+    session.constraints["travel_pending"] = True
+    session.constraints["travel_days"] = days
+    question = "你要去哪个城市玩？告诉我城市名（比如 厦门、北京），我按当地未来几天的天气给你搭配。"
+    return {
+        "message_id": utils.gen_id("m"),
+        "role": "agent",
+        "action": "clarify",
+        "content": question,
+        "outfits": [],
+        "remaining_count": session.remaining_count,
+        "clarify": {
+            "missing": ["destination"],
+            "question": question,
+            "options": {"cities": ["厦门", "北京", "上海", "成都", "哈尔滨", "昆明", "三亚", "西安"]},
         },
     }
 
@@ -409,12 +431,68 @@ _KNOWLEDGE_HEADS = (
 )
 _RECOMMEND_WORDS = ("推荐", "搭一套", "搭配一下", "帮我搭", "来一套", "换一批", "配一套")
 
+# ---------- 旅游目的地场景 ----------
+# 旅游语义词：出现这些且带「穿搭诉求」时判 travel，走目的地未来天气推荐。
+_TRAVEL_WORDS = ("旅游", "旅行", "出游", "去玩", "出去玩", "游玩", "出差", "度假",
+                 "滑雪", "爬山", "徒步", "露营", "海边", "玩几天", "玩三天", "去...玩")
+# 目的地引导词：用于从句子里定位城市（「去厦门」「到北京」「下周在上海」）。
+_DEST_MARKERS = ("去", "到", "往", "飞", "抵达", "下一站", "目的地是")
 
-def _classify_intent(text: str) -> str:
-    """后端统一意图识别（1.5）：替代前端关键词判断，前端只传原文。
 
-    顺序：改良 > 明确推荐语 > 疑问句式 > 默认推荐。
+def _extract_dest_city(text: str) -> str | None:
+    """从用户话里抽取旅游目的地城市名。
+
+    优先匹配内置城市表（覆盖产品常见城市），再尝试「去/到+2~4字」并通过
+    Geocoding 验证，避免把「去吃饭」误当城市。
     """
+    t = (text or "").strip()
+    if not t:
+        return None
+    # 1) 内置城市表： longest-first 避免「西安」被「西」类误匹配
+    for city in sorted(_CITY_COORDS, key=len, reverse=True):
+        if city in t:
+            return city
+    # 2) 引导词后的候选词 -> Geocoding 验证
+    for marker in _DEST_MARKERS:
+        for m in re.finditer(re.escape(marker) + r"([一-龥]{2,6})", t):
+            cand = m.group(1)
+            # 去掉常见的非城市后缀
+            cand = re.sub(r"(玩|旅游|出差|度假|游玩|逛逛|几天|三天|两天|一周|市|玩儿).*$", "", cand)
+            cand = cand.strip()
+            if len(cand) >= 2 and _geocode_city(cand):
+                return cand
+    return None
+
+
+def _extract_travel_days(text: str) -> int:
+    """从话里抽旅行天数；用于决定取未来几天预报，默认 3 天。"""
+    t = (text or "")
+    m = re.search(r"([1-9]|一|二|三|四|五|六|七)\s*天", t)
+    if m:
+        return _ORDINAL.get(m.group(1), 3)
+    if "周末" in t:
+        return 2
+    if "一周" in t or "七天" in t:
+        return 7
+    return 3
+
+
+def _detect_travel(text: str) -> bool:
+    """本地检测旅游意图（无 LLM 时也能生效）。需同时有旅游词与穿搭诉求。"""
+    t = (text or "").strip()
+    if not t:
+        return False
+    has_travel = any(w in t for w in _TRAVEL_WORDS if "..." not in w) or bool(
+        re.search(r"去[一-龥]{2,6}(玩|旅游|出差|度假|逛)", t))
+    if not has_travel:
+        return False
+    # 穿搭诉求：穿/搭/带什么衣服等；或本来就点到城市名
+    has_outfit = any(w in t for w in ("穿", "搭", "衣服", "带什么", "着装", "什么好"))
+    return has_outfit or _extract_dest_city(t) is not None
+
+
+def _classify_intent_rules(text: str) -> str:
+    """关键词兜底规则（无 LLM / 模型失败时使用）。"""
     t = (text or "").strip()
     if not t:
         return "free_text"
@@ -426,11 +504,47 @@ def _classify_intent(text: str) -> str:
         return "refine"
     if any(w in t for w in _RECOMMEND_WORDS):
         return "recommend"
+    if _detect_travel(t):
+        return "travel"
     if t.endswith(("?", "？", "吗", "呢", "吧")):
+        return "knowledge"
+    # 纯知识问法：问概念/能不能/原理，要的是解释而非搭配方案
+    if any(h in t for h in ("有哪些种类", "有哪些类型", "什么种类", "能一起穿",
+                            "能不能一起", "可以一起穿", "三色原则", "是什么", "什么意思")):
         return "knowledge"
     if t.startswith(_KNOWLEDGE_HEADS) or any(h in t for h in ("怎么选", "怎么搭", "如何选", "为什么")):
         return "knowledge"
     return "recommend"
+
+
+def _classify_intent(text: str) -> str:
+    """后端统一意图识别（1.5）：LLM 优先，关键词规则兜底。
+
+    LLM 能理解「今天穿什么」「有啥配饰可以搭」这类口语/语病问法，
+    不再一律按关键词落到 recommend。无 key / 模型失败自动回退规则，
+    保证离线部署行为与升级前一致。
+    """
+    t = (text or "").strip()
+    if not t:
+        return "free_text"
+
+    # 这几个是结构化动作，必须先由本地规则锁定，避免 LLM 误判导致 payload 缺字段。
+    if any(w in t for w in ("会怎样", "怎么样", "对比", "比较一下", "如果换")):
+        return "compare"
+    if _detect_refine(t):
+        return "refine"
+    # 旅游：本地检测优先，保证「去厦门玩3天穿什么」不被 LLM 误判成普通 recommend。
+    if _detect_travel(t):
+        return "travel"
+
+    predicted = classify_intent(t)
+    # LLM 判成 travel 但本地没检测到时，只要有目的地城市也采信（口语/语病场景）
+    if predicted == "travel" and _extract_dest_city(t) is None:
+        predicted = None
+    # refine 必须带出「改第几套的哪个品类」，模型判了但本地解析不到时不能采用。
+    if predicted == "refine" and not _detect_refine(t):
+        predicted = None
+    return predicted if predicted else _classify_intent_rules(t)
 
 
 def _parse_free_text(text: str) -> tuple[str, dict]:
@@ -541,14 +655,38 @@ def _run_recommend(db: Session, request: Request, session: ChatSession, user: Us
         ))
 
     # 回复文案：优先由大模型结合本轮需求与方案生成，避免机械模板句
-    weather_info = {"city": session.weather_city, "temp": session.weather_temp}
+    weather_info = {
+        "city": session.weather_city,
+        "temp": session.weather_temp,
+        "rain": session.weather_rain,
+        "rain_probability": getattr(session, "weather_rain_prob", None),
+    }
+    # 旅游场景：把目的地与温度区间带进文案，明确这是按当地未来天气搭的
+    _travel = (session.constraints or {}).get("travel")
+    if _travel:
+        weather_info["travel"] = _travel
+    # 衣橱可用配饰：回答「有什么配饰可以搭配」等问题时给具体建议用
+    accessories = [
+        (i.name or "").strip() for i in items
+        if (i.category == "配饰" or i.sub_category in ("帽子", "围巾", "腰带", "包包", "首饰"))
+        and (i.name or "").strip()
+    ]
     # 1.2：把上一轮对话带给模型，避免「换成裙子」时丢失前文语境
     history = _recent_history(db, session.session_id)
-    content = llm_reply(user_text, weather_info, outfits, history=history) if outfits else None
+    content = llm_reply(user_text, weather_info, outfits, history=history,
+                        accessories=accessories) if outfits else None
 
     if not content:
         if outfits:
-            content = f"为你推荐 {len(outfits)} 套搭配："
+            if _travel:
+                tmin, tmax = _travel.get("temp_min"), _travel.get("temp_max")
+                span = (f"{tmin}~{tmax}°C" if tmin is not None and tmax is not None
+                        else f"{_travel.get('temp')}°C")
+                content = (f"按 {_travel.get('city')} 未来 {_travel.get('day_count', 3)} 天天气"
+                           f"（{span}，代表温度 {_travel.get('temp')}°C，26℃ 穿衣法）"
+                           f"给你搭了 {len(outfits)} 套：")
+            else:
+                content = f"为你推荐 {len(outfits)} 套搭配："
         else:
             content = result.get("reason", "暂时没有满足条件的搭配，建议放宽约束。")
     return outfits, content
@@ -575,13 +713,14 @@ def _resolve_weather(req_weather, user):
     if not data or data.get("temp") is None:
         # 取不到实时天气时，明确标记不可用，而不是硬编码一个假温度
         class _Empty:
-            city = city
-            temp = None
-            rain = "未知"
-            rain_probability = None
-            source = "unavailable"
+            def __init__(self, c):
+                self.city = c
+                self.temp = None
+                self.rain = "未知"
+                self.rain_probability = None
+                self.source = "unavailable"
 
-        return _Empty, "unavailable"
+        return _Empty(city), "unavailable"
 
     class _W:
         def __init__(self, d):
@@ -594,6 +733,50 @@ def _resolve_weather(req_weather, user):
             self.source = d.get("source") or "open-meteo"
 
     return _W(data), "realtime"
+
+
+# 出方案前实时天气刷新缓存：session_id -> (抓取时间, city, temp, rain, rain_prob, source)
+# 用内存缓存而非数据库字段，避免改 schema；服务重启后缓存清空，下次自然重取。
+_WEATHER_REFRESH_CACHE: dict[str, tuple] = {}
+
+
+def _refresh_session_weather(db: Session, session: ChatSession, user: User) -> None:
+    """出方案前刷新会话天气，避免复用旧会话时沿用建会话那一刻的过期温度。
+
+    前端会话存在 localStorage 里会被长期复用，而页面天气是实时的；若不刷新，
+    引擎会拿旧 temp（或 None→默认 22℃）推荐，出现「页面 19℃、卡片按 22℃ 搭」的错位。
+    同一会话 10 分钟内只打一次天气 API，兼顾实时性与延迟。
+    """
+    from datetime import datetime, timedelta
+    try:
+        city = (getattr(user, "city", "") or getattr(session, "weather_city", "") or "").strip()
+        if not city:
+            return
+        now = datetime.now()
+        hit = _WEATHER_REFRESH_CACHE.get(session.session_id)
+        if hit and now - hit[0] < timedelta(minutes=10) and hit[1] == city:
+            _, _, temp, rain, prob, source = hit
+            session.weather_temp = temp
+            session.weather_rain = rain or "未知"
+            session.weather_rain_prob = prob
+            session.weather_source = source
+            return
+
+        data = _fetch_weather(city)
+        if data and data.get("temp") is not None:
+            temp = data.get("temp")
+            rain = data.get("rain") or "未知"
+            prob = data.get("rain_probability")
+            source = data.get("source") or "realtime"
+            session.weather_city = data.get("city") or city
+            session.weather_temp = temp
+            session.weather_rain = rain
+            session.weather_rain_prob = prob
+            session.weather_source = source
+            _WEATHER_REFRESH_CACHE[session.session_id] = (now, city, temp, rain, prob, source)
+    except Exception:
+        # 天气刷新失败不影响主链路：保留会话原有天气，引擎按已知/默认处理
+        pass
 
 
 @router.post("/session", response_model=schemas.APIResponse)
@@ -735,6 +918,14 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
         if action == "refine":
             payload = {**payload, "refine": _detect_refine(payload.get("text", ""))}
 
+    # 旅游场景：会话级「等待目的地」状态。用户先说「想去旅游」但没给城市时反问，
+    # 下一句补上城市名后，即使被判成别的意图也要回到旅游流程。
+    constraints = session.constraints or {}
+    travel_pending = bool(constraints.get("travel_pending"))
+    text_now = payload.get("text", "")
+    if travel_pending and action in ("recommend", "free_text", "knowledge", "travel"):
+        action = "travel"
+
     # 记录用户消息
     msg = ChatMessage(
         message_id=utils.gen_id("m"),
@@ -745,6 +936,57 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
         payload=payload,
     )
     db.add(msg)
+
+    # 旅游场景：目的地未来天气驱动推荐。
+    # 用户去的是另一座城市，绝不能用当前城市的实时天气，也不用前端传来的天气。
+    travel_info: dict | None = None
+    if action == "travel":
+        dest = _extract_dest_city(text_now)
+        if not dest:
+            db.commit()
+            return ok(data=_travel_clarify_response(session, text_now))
+        days = _extract_travel_days(text_now) or int(constraints.get("travel_days", 3))
+        forecast = _fetch_forecast(dest, days)
+        summary = forecast_summary(forecast, days) if forecast else None
+        if not summary:
+            # 抓不到未来天气时给明确提示，不伪造温度、也不回落到当前城市（会误导）
+            db.commit()
+            return ok(data={
+                "message_id": utils.gen_id("m"), "role": "agent", "action": "echo",
+                "content": (f"暂时取不到 {dest} 未来 {days} 天的天气，怕给你搭错，"
+                            f"请稍会儿再试或换个城市。"),
+                "outfits": [], "remaining_count": session.remaining_count,
+            })
+        # 用目的地代表温度覆盖会话天气（26℃ 法按体感均温计算）
+        session.weather_city = summary["city"]
+        session.weather_temp = summary["temp"]
+        session.weather_rain = summary["rain"]
+        session.weather_rain_prob = summary["rain_probability"]
+        session.weather_source = "travel-forecast"
+        session.occasion = session.occasion or "旅游"
+        travel_info = summary
+        # 清掉等待标记，记录旅游上下文供回复文案标注
+        constraints["travel_pending"] = False
+        constraints["travel_days"] = days
+        constraints["travel"] = summary
+        session.constraints = constraints
+        action = "recommend"  # 转入既有推荐链路，ctx/过滤/打分/文案全部复用
+
+    # 出方案类动作：先确定本次会话天气，再判断澄清与推荐。
+    # 优先级：前端传来的真实天气（浏览器能联网取到）> 后端自取实时天气 > 会话旧值。
+    # 避免「页面 19℃、卡片按 mock 22℃ 搭」的错位。
+    # 注意：旅游场景已用目的地天气覆盖，必须跳过这里的当前城市天气覆盖。
+    if action in ("recommend", "refine", "compare", "reject") and not travel_info:
+        passed_w = payload.get("weather")
+        if (isinstance(passed_w, dict) and passed_w.get("temp") is not None
+                and str(passed_w.get("source", "")).startswith("open-meteo")):
+            session.weather_city = passed_w.get("city") or session.weather_city
+            session.weather_temp = passed_w.get("temp")
+            session.weather_rain = passed_w.get("rain") or "未知"
+            session.weather_rain_prob = passed_w.get("rain_probability")
+            session.weather_source = "realtime"
+        else:
+            _refresh_session_weather(db, session, user)
 
     # 先识别「锁定某套 + 只改一个单品」的改良意图
     if action == "free_text":
@@ -853,6 +1095,33 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
 
     # knowledge：知识问答（BM25 + LLM）
     if action == "knowledge":
+        # 构造用户上下文：天气 + 长期偏好 + 衣橱概况，让无检索命中时也能具体作答
+        _ctx_lines: list[str] = []
+        if session.weather_city or session.weather_temp is not None:
+            _ctx_lines.append(
+                f"当前天气：{session.weather_city or '未知城市'} "
+                f"{session.weather_temp if session.weather_temp is not None else '温度未知'}°C，"
+                f"降雨：{session.weather_rain or '未知'}（来源：{getattr(session, 'weather_source', '未知')}）"
+            )
+        if session.occasion:
+            _ctx_lines.append(f"本次场合：{session.occasion}")
+        _prefs = [
+            f"{k}={getattr(user, 'pref_' + k, '')}"
+            for k in ("color", "style", "comfort", "occasion", "fabric")
+            if getattr(user, "pref_" + k, "")
+        ]
+        if _prefs:
+            _ctx_lines.append("用户长期偏好：" + "、".join(_prefs))
+        _items = _item_dicts(db, session.user_id)
+        if _items:
+            _cats: dict[str, int] = {}
+            for _it in _items:
+                _cats[_it["category"]] = _cats.get(_it["category"], 0) + 1
+            _ctx_lines.append(
+                f"用户衣橱共 {len(_items)} 件：" +
+                "、".join(f"{k}{v}件" for k, v in _cats.items())
+            )
+        _closet_context = "\n".join(_ctx_lines)
         query = payload.get("text", "")
         if not query:
             db.commit()
@@ -871,9 +1140,14 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
         # 1.2 多轮上下文：把最近几轮对话带给模型，支持「那秋天呢」这类追问
         history = _recent_history(db, session_id, exclude_message_id=msg.message_id)
 
+        # 检索是增强项而非开关：有模型就调，片段为空时让模型结合上下文与常识作答。
+        llm_on = config.is_llm_enabled()
         answer = None
-        if passages and config.is_llm_enabled():
-            answer = ask(query, passages, history=history)
+        if llm_on:
+            answer = ask(query, passages, history=history, context=_closet_context)
+            if answer is None and passages:
+                answer = ask(query, passages, history=history, context=_closet_context,
+                             timeout=config.LLM_TIMEOUT * 1.5)
 
         content = ""
         if answer:
@@ -883,19 +1157,23 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
                 f"[{i+1}] {p['title']}\n{p['text'][:300]}...\n出处：{p['source']}"
                 for i, p in enumerate(passages[:3])
             )
+        elif _closet_context:
+            content = ("根据你目前的天气、偏好和衣橱情况，我暂时没法给出可靠建议。"
+                       "可以换个更具体的问法，比如「这种天气通勤怎么穿」或「配饰怎么搭」。")
         else:
-            content = "知识库里暂时没有相关资料，建议换个问法或补充领域资料。"
+            content = "可以换个更具体的问法，比如「今天通勤怎么穿」或「配饰怎么搭」。"
 
-        # 1.4 显式三态：模型生成 / 原文摘录 / 无资料，并给出降级原因
-        llm_on = config.is_llm_enabled()
+        # 1.4 显式四态：模型生成 / 原文摘录 / 降级简答 / 无资料，并给出降级原因
         if answer:
             answer_source, degraded, degraded_reason = "llm", False, ""
         elif passages and not llm_on:
             answer_source, degraded, degraded_reason = "passages", True, "no_key"
         elif passages:
             answer_source, degraded, degraded_reason = "passages", True, "llm_failed"
+        elif llm_on:
+            answer_source, degraded, degraded_reason = "none", True, "llm_failed_no_kb"
         else:
-            answer_source, degraded, degraded_reason = "none", True, "no_passages"
+            answer_source, degraded, degraded_reason = "none", True, "no_key_no_kb"
 
         agent_msg = ChatMessage(
             message_id=utils.gen_id("m"),
@@ -1077,6 +1355,8 @@ def get_session(session_id: str, request: Request, db: Session = Depends(get_db)
     session = db.query(ChatSession).filter(ChatSession.session_id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="会话不存在")
+    # 只能查看自己的会话，防止按 session_id 越权读取他人对话
+    security.assert_owner(session.user_id, request)
     return ok(data=_session_to_response(session))
 
 
@@ -1085,6 +1365,8 @@ def end_session(session_id: str, request: Request, db: Session = Depends(get_db)
     session = db.query(ChatSession).filter(ChatSession.session_id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="会话不存在")
+    # 只能结束自己的会话，防止越权终止他人咨询
+    security.assert_owner(session.user_id, request)
     session.status = "ended"
     db.commit()
     return ok(data={"session_id": session_id, "status": "ended"})
@@ -1119,11 +1401,41 @@ def send_message_stream(session_id: str, user_id: str,
             raise HTTPException(status_code=404, detail="会话不存在")
         if session.user_id != user_id:
             raise HTTPException(status_code=403, detail="无权访问该会话")
+        user = db.query(User).filter(User.user_id == session.user_id).first()
 
         kb: KnowledgeIndex = request.app.state.kb
         passages = kb.search(text, top_k=5)
         history = _recent_history(db, session_id)
         llm_on = config.is_llm_enabled()
+
+        # 与同步版一致：构造天气/画像/衣橱上下文，检索未命中也能具体回答。
+        _ctx_lines: list[str] = []
+        if session.weather_city or session.weather_temp is not None:
+            _ctx_lines.append(
+                f"当前天气：{session.weather_city or '未知城市'} "
+                f"{session.weather_temp if session.weather_temp is not None else '温度未知'}°C，"
+                f"降雨：{session.weather_rain or '未知'}"
+            )
+        if session.occasion:
+            _ctx_lines.append(f"本次场合：{session.occasion}")
+        _prefs = [
+            f"{k}={getattr(user, 'pref_' + k, '')}"
+            for k in ("color", "style", "comfort", "occasion", "fabric")
+            if getattr(user, "pref_" + k, "")
+        ]
+        if _prefs:
+            _ctx_lines.append("用户长期偏好：" + "、".join(_prefs))
+        _items = db.query(ClothingItem).filter(ClothingItem.user_id == session.user_id).all()
+        if _items:
+            _cats: dict[str, int] = {}
+            for _it in _items:
+                _cats[_it.category] = _cats.get(_it.category, 0) + 1
+            _ctx_lines.append(
+                f"用户衣橱共 {len(_items)} 件：" +
+                "、".join(f"{k}{v}件" for k, v in _cats.items())
+            )
+        _closet_context = "\n".join(_ctx_lines)
+
         user_msg = ChatMessage(
             message_id=utils.gen_id("m"), session_id=session_id,
             role="user", action="knowledge", content=text,
@@ -1138,8 +1450,9 @@ def send_message_stream(session_id: str, user_id: str,
         from app.agent import llm as _llm
 
         src_stream = None
-        if passages and llm_on:
-            src_stream = _llm.ask_stream(text, passages, history=history)
+        if llm_on:
+            src_stream = _llm.ask_stream(text, passages, history=history,
+                                         context=_closet_context)
 
         if src_stream is not None:
             answer_source, degraded, reason = "llm", False, ""
@@ -1147,8 +1460,10 @@ def send_message_stream(session_id: str, user_id: str,
             answer_source, degraded, reason = "passages", True, "no_key"
         elif passages:
             answer_source, degraded, reason = "passages", True, "llm_failed"
+        elif llm_on:
+            answer_source, degraded, reason = "none", True, "llm_failed_no_kb"
         else:
-            answer_source, degraded, reason = "none", True, "no_passages"
+            answer_source, degraded, reason = "none", True, "no_key_no_kb"
 
         yield _sse({"type": "meta", "answer_source": answer_source,
                     "degraded": degraded, "degraded_reason": reason,
@@ -1174,8 +1489,9 @@ def send_message_stream(session_id: str, user_id: str,
                 if answer_source == "llm":
                     answer_source, degraded, reason = "passages", True, "llm_failed"
             else:
-                content = "知识库里暂时没有相关资料，建议换个问法或补充领域资料。"
-                answer_source, degraded, reason = "none", True, "no_passages"
+                content = ("可以换个更具体的问法，比如「今天通勤怎么穿」或「配饰怎么搭」，"
+                           "我会结合天气和你的衣橱来答。")
+                answer_source, degraded, reason = "none", True, "no_answer"
             yield _sse({"type": "delta", "text": content})
 
         message_id = utils.gen_id("m")

@@ -1,0 +1,43 @@
+@startuml 功能结构图
+title 系统功能结构图
+
+rectangle "对话式穿搭推理 Agent" {
+  rectangle "用户管理" {
+    rectangle "注册登录"
+    rectangle "资料与体型"
+    rectangle "偏好管理"
+  }
+  rectangle "衣橱管理" {
+    rectangle "衣物增删改查"
+    rectangle "Excel 批量导入"
+    rectangle "图片上传"
+    rectangle "标签枚举"
+  }
+  rectangle "对话推荐" {
+    rectangle "会话管理"
+    rectangle "搭配推荐"
+    rectangle "多轮调整"
+    rectangle "单品改良"
+    rectangle "反事实对比"
+  }
+  rectangle "知识问答" {
+    rectangle "知识库检索"
+    rectangle "流式问答"
+  }
+  rectangle "反馈学习" {
+    rectangle "提交反馈"
+    rectangle "偏好重算"
+    rectangle "反馈撤销"
+  }
+  rectangle "购前评估" {
+    rectangle "可搭配分析"
+    rectangle "重复度计算"
+    rectangle "购买建议"
+  }
+  rectangle "天气服务" {
+    rectangle "实时天气"
+    rectangle "降级兜底"
+  }
+}
+
+@enduml

@@ -216,12 +216,49 @@ async def import_items(user_id: str, file: UploadFile = File(...), db: Session =
     return ok(data={"success": success, "failed": len(errors), "errors": errors})
 
 
+def _validate_item_fields(category: str | None, sub_category: str | None,
+                          warmth_level: int | None, formality_level: int | None) -> None:
+    """单品字段校验，与 /clothing/import 保持同一口径。
+
+    校验三项：品类白名单、二级品类归属、保暖/正式等级 1-5。
+    差异只在错误出口：Excel 导入逐行收集 errors 后继续；单条增改直接抛 422，
+    便于前端把提示落到具体字段。
+    """
+    meta = rule_repo.clothing_meta or {}
+    cat_map = meta.get("category", {})
+    if category and cat_map and category not in cat_map:
+        raise HTTPException(
+            status_code=422,
+            detail=f"品类「{category}」不存在，可选：{'/'.join(cat_map.keys())}",
+        )
+    if category and sub_category:
+        subs = cat_map.get(category, [])
+        if subs and sub_category not in subs:
+            raise HTTPException(
+                status_code=422,
+                detail=(f"品类「{category}」下没有二级品类「{sub_category}」，"
+                        f"可选：{'/'.join(str(s) for s in subs)}"),
+            )
+    for field, val in (("warmth_level", warmth_level),
+                       ("formality_level", formality_level)):
+        if val is None:
+            continue
+        if not isinstance(val, int) or isinstance(val, bool) or not 1 <= val <= 5:
+            raise HTTPException(
+                status_code=422,
+                detail=f"{field} 应为 1-5 的整数，实际为 {val}",
+            )
+
+
 @router.post("", response_model=schemas.APIResponse)
 def create_item(req: schemas.ClothingItemCreate, user_id: str, db: Session = Depends(get_db)):
     """新增衣物。"""
     user = db.query(User).filter(User.user_id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
+
+    _validate_item_fields(req.category, req.sub_category,
+                          req.warmth_level, req.formality_level)
 
     item = ClothingItem(
         item_id=utils.gen_id("i"),
@@ -270,6 +307,55 @@ def list_items(
     ).model_dump())
 
 
+@router.get("/export")
+def export_items(user_id: str, category: str | None = None, db: Session = Depends(get_db)):
+    """导出衣橱为 Excel（可选按品类筛选）。
+
+    列定义复用 IMPORT_FIELDS，导出的文件可直接用 /clothing/import 原样回导，
+    保证「导出→导入」往返一致，不会出现两套字段口径。
+    """
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    q = db.query(ClothingItem).filter(ClothingItem.user_id == user_id)
+    if category:
+        q = q.filter(ClothingItem.category == category)
+    items = q.order_by(ClothingItem.created_at.desc()).all()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "衣物清单"
+    ws.append(IMPORT_FIELDS)
+    for it in items:
+        ws.append([
+            it.name,
+            it.category,
+            it.sub_category,
+            it.color,
+            it.color_brightness or "",
+            it.season or "",
+            it.fit_snug or "",
+            it.fit_silhouette or "",
+            it.fabric or "",
+            it.style or "",
+            "/".join(it.occasion or []),
+            it.warmth_level,
+            it.formality_level,
+            it.image_url or "",
+            "/".join(it.tags or []),
+        ])
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=wardrobe_export.xlsx"},
+    )
+
+
 @router.get("/{item_id}", response_model=schemas.APIResponse)
 def get_item(item_id: str, request: Request, db: Session = Depends(get_db)):
     item = db.query(ClothingItem).filter(ClothingItem.item_id == item_id).first()
@@ -289,6 +375,15 @@ def update_item(item_id: str, req: schemas.ClothingItemUpdate, request: Request,
     security.assert_owner(item.user_id, request)
 
     update_data = req.model_dump(exclude_unset=True)
+
+    # 只校验本次真正要改的字段；未提交的字段沿用库中原值，避免误判
+    _validate_item_fields(
+        update_data.get("category", item.category),
+        update_data.get("sub_category", item.sub_category),
+        update_data.get("warmth_level", item.warmth_level),
+        update_data.get("formality_level", item.formality_level),
+    )
+
     for k, v in update_data.items():
         setattr(item, k, v)
     db.commit()

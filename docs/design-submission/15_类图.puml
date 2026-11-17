@@ -1,0 +1,98 @@
+@startuml 类图
+title 类图：ORM 实体与 Agent 类
+
+package "ORM 实体 (app/db.py)" {
+  class User {
+    +user_id : String
+    +nickname : String
+    +username : String
+    +password_hash : String
+    +body_shape : String
+    +pref_color : int
+    +pref_style : int
+    +pref_comfort : int
+    +pref_occasion : int
+    +pref_fabric : int
+  }
+  class ClothingItem {
+    +item_id : String
+    +user_id : String
+    +name : String
+    +category : String
+    +sub_category : String
+    +color : String
+    +warmth_level : int
+    +formality_level : int
+  }
+  class ChatSession {
+    +session_id : String
+    +user_id : String
+    +status : String
+    +constraints : JSON
+    +remaining_count : int
+    +messages : List
+  }
+  class ChatMessage {
+    +message_id : String
+    +session_id : String
+    +role : String
+    +action : String
+    +content : String
+  }
+  class FeedbackRecord {
+    +record_id : String
+    +user_id : String
+    +rating : int
+    +evidence : JSON
+  }
+  class PurchaseEvaluation {
+    +evaluation_id : String
+    +user_id : String
+    +target_item : JSON
+    +result : JSON
+  }
+  class OutfitRecord {
+    +outfit_id : String
+    +user_id : String
+    +session_id : String
+    +items : JSON
+    +score : float
+  }
+}
+
+ChatSession "1" o-- "0..*" ChatMessage : messages
+User "1" --> "0..*" ClothingItem : 拥有
+User "1" --> "0..*" ChatSession : 发起
+ChatSession "1" --> "0..*" OutfitRecord : 产生
+User "1" --> "0..*" FeedbackRecord : 提交
+User "1" --> "0..*" PurchaseEvaluation : 发起
+
+package "Agent (app/agent)" {
+  class RecommendEngine {
+    +recommend(ctx, items)
+    +_hard_filter()
+    +_score()
+    +_diversify()
+    +refine()
+  }
+  class RuleRepository {
+    +filter_rules : list
+    +score_rules : list
+    +body_rules : dict
+    +load()
+  }
+  class KnowledgeIndex {
+    +chunks : list
+    +bm25 : BM25
+    +load()
+    +search()
+  }
+  class LLMClient
+  class GarmentProfile
+}
+
+RecommendEngine --> RuleRepository : 使用
+RecommendEngine ..> GarmentProfile : 调用
+KnowledgeIndex ..> LLMClient : 检索后生成
+
+@enduml

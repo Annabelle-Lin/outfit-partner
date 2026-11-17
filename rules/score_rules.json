@@ -64,14 +64,6 @@
       "source": "服装造型与版型设计理论"
     },
     {
-      "rule_id": "S008",
-      "name": "版型比例-上短下长",
-      "dimension": "fit_ratio",
-      "condition": { "top_length": "short", "bottom_length": "long" },
-      "weight": 1.0,
-      "source": "服装造型与版型设计理论"
-    },
-    {
       "rule_id": "S009",
       "name": "面料季节适配",
       "dimension": "fabric_season",
@@ -102,6 +94,33 @@
       "condition": { "match_body_shape_avoid": true },
       "weight": -1.0,
       "source": "人体体型服饰适配规则"
+    },
+    {
+      "rule_id": "S008",
+      "name": "26℃穿衣法-保暖总额契合",
+      "dimension": "temperature",
+      "condition": { "comfort_temp": 26, "formula": "sum(衣物折算度数) ≈ 26 - 气温", "overheat_penalty": true },
+      "weight": 9.0,
+      "note": "偏差≤1℃ +9，≤2.5℃ +5，≤4℃ +1，>4℃ -5；穿多超过需求2℃ 额外 -4（宁可略凉不过度保暖）。取代旧的「平均暖度」算法——平均值会被多穿稀释，求和不会。",
+      "source": "26℃穿衣法（民间经验公式）+ 用户反馈偏好"
+    },
+    {
+      "rule_id": "S013",
+      "name": "洋葱式分层叠穿",
+      "dimension": "layering",
+      "condition": { "min_layers": 2, "layers": ["inner", "middle", "outer"] },
+      "weight": 2.0,
+      "note": "至少两层（内+外 或 内+中），可按体感增减。",
+      "source": "洋葱式穿衣法（中国气象局推荐）"
+    },
+    {
+      "rule_id": "S014",
+      "name": "三明治穿法-三层齐全",
+      "dimension": "layering",
+      "condition": { "require_layers": ["inner", "middle", "outer"] },
+      "weight": 1.5,
+      "note": "内层贴身透气、中层保暖、外层防风防水；湿冷/雨天尤其合适。雨天内外两层也加分。",
+      "source": "三明治穿衣法（中国气象局推荐）"
     }
   ]
 }

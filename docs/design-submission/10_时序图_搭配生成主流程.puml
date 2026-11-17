@@ -1,0 +1,37 @@
+@startuml 时序图_搭配生成主流程
+title 时序图：搭配生成主流程
+caption 设计态：引擎与数据读写已实现；大模型（LLM）当前未接入，实际走模板文案分支
+
+actor 用户 as U
+participant "前端" as FE
+participant "对话路由 chat.py" as API
+participant "天气模块" as W
+participant "推荐引擎 engine.py" as ENG
+participant "规则库 JSON" as R
+database "数据库" as DB
+participant "大模型 llm.py" as LLM
+
+U -> FE : 输入需求
+FE -> API : POST /chat/{id}/message
+API -> API : 意图识别/澄清判断
+API -> W : 解析天气（按需）
+W --> API : 温度/降雨/来源
+API -> DB : 读取用户衣物与画像
+DB --> API : 单品列表
+API -> ENG : recommend(ctx, items)
+ENG -> R : 加载过滤/打分/体型规则
+R --> ENG : 规则
+ENG -> ENG : 枚举→硬过滤→打分→差异化
+ENG -> ENG : 生成理由点
+ENG --> API : Top3 方案
+API -> DB : 持久化方案快照、更新会话额度
+API -> LLM : 组织自然语言回复
+alt 大模型可用
+  LLM --> API : 文案
+else 不可用/超时
+  API -> API : 使用模板文案
+end
+API --> FE : 统一响应（方案+回复）
+FE --> U : 渲染搭配卡片
+
+@enduml
