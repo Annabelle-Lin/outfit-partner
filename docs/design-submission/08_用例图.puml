@@ -1,0 +1,46 @@
+@startuml 用例图
+left to right direction
+skinparam packageStyle rectangle
+
+actor "注册用户" as user
+
+rectangle "对话式穿搭推理 Agent" {
+  usecase "注册账号" as uc1
+  usecase "登录系统" as uc2
+  usecase "维护个人资料与体型" as uc3
+  usecase "管理衣物（增删改查）" as uc4
+  usecase "Excel 批量导入衣物" as uc5
+  usecase "上传衣物图片" as uc6
+  usecase "创建对话会话" as uc7
+  usecase "获取搭配推荐" as uc8
+  usecase "多轮调整与单品改良" as uc9
+  usecase "穿搭知识问答" as uc10
+  usecase "提交反馈" as uc11
+  usecase "撤销反馈" as uc12
+  usecase "购前评估" as uc13
+  usecase "查询历史记录" as uc14
+  usecase "结束会话" as uc15
+}
+
+user --> uc1
+user --> uc2
+user --> uc3
+user --> uc4
+user --> uc5
+user --> uc6
+user --> uc7
+user --> uc8
+user --> uc9
+user --> uc10
+user --> uc11
+user --> uc12
+user --> uc13
+user --> uc14
+user --> uc15
+
+uc5 ..> uc4 : <<extend>>
+uc9 ..> uc8 : <<extend>>
+uc12 ..> uc11 : <<extend>>
+uc6 ..> uc4 : <<extend>>
+
+@enduml

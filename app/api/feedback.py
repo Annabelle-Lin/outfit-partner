@@ -20,23 +20,32 @@ def submit_feedback(req: schemas.FeedbackSubmit, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
 
+    # 一期：把用户手选的标签与「自由文本解析出的标签」合并。
+    # 手选优先、去重；解析结果单独留在 evidence.auto_tags 里，便于回溯是哪来的。
+    manual_tags = [t for t in (req.tags or []) if isinstance(t, str) and t.strip()]
+    auto_tags = [t for t in utils.parse_comment_to_tags(req.comment) if t not in manual_tags]
+    tags = manual_tags + auto_tags
+
     record = FeedbackRecord(
         record_id=utils.gen_id("r"),
         user_id=req.user_id,
         session_id=req.session_id,
         outfit_id=req.outfit_id,
         rating=req.rating,
-        tags=req.tags,
+        tags=tags,
         comment=req.comment,
     )
     db.add(record)
 
     # 2.3 记下这条反馈到底改了什么，撤销时才能反向回退
-    delta = utils.preference_delta(req.rating, req.tags)
+    # 注意：delta 必须在 tags 合并之后计算，否则标签信息进不了偏好。
+    delta = utils.preference_delta(req.rating, tags)
     record.evidence = {
         "delta": delta,
         "rating": req.rating,
-        "tags": req.tags,
+        "tags": tags,
+        "manual_tags": manual_tags,
+        "auto_tags": auto_tags,
         "comment": req.comment,
     }
     db.flush()

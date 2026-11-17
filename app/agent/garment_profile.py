@@ -157,6 +157,33 @@ def effective_warmth(item: dict) -> int:
     return stored_int
 
 
+def effective_warmth_named(item: dict) -> int:
+    """取得可用于「26℃穿衣法」的暖度。
+
+    与 effective_warmth 的区别：当数据库里的 warmth_level 仍是占位默认 3
+    （前端没有暖度录入入口，早期导入的衣橱几乎全是 3）时，优先按**衣物名字**
+    推断。名字比子品类可靠——实测衣橱里「黑色羽绒服」「羊毛大衣」的
+    sub_category 都被误标成「风衣」，只看子品类会把它们当薄外套。
+
+    存储值非默认值（1/2/4/5）时视为可信，直接采用；这样
+    「黑色针织连衣裙(warmth=4)」这类不会被关键词「连衣裙(2)」误伤。
+    """
+    stored = item.get("warmth_level")
+    try:
+        stored_int = int(stored)
+    except (TypeError, ValueError):
+        stored_int = None
+    if stored_int is not None and stored_int > 0 and stored_int != 3:
+        return stored_int
+
+    name = str(item.get("name") or "")
+    if name:
+        for kw, level in _WARMTH_KEYWORDS:
+            if kw in name:
+                return level
+    return effective_warmth(item)
+
+
 def effective_season(item: dict) -> str:
     """取得季节；存储为「四季」或空时按暖度推断。"""
     raw = normalize_season(item.get("season"))

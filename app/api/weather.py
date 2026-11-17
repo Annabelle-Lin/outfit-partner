@@ -151,6 +151,113 @@ def _fetch_weather(city: str) -> dict | None:
         return None
 
 
+def _fetch_forecast(city: str, days: int = 7) -> dict | None:
+    """调用 Open-Meteo 取未来 N 天逐日预报；失败返回 None。
+
+    供「旅游目的地」场景使用：用户要去另一座城市，按当地未来一周的
+    逐日最高/最低温与降水概率给出代表温度，再驱动推荐。
+    """
+    days = max(1, min(16, int(days or 7)))  # Open-Meteo 免费额度最多 16 天
+    coords = _geocode_city(city)
+    if not coords:
+        return None
+    lat, lon = coords
+    try:
+        resp = httpx.get(
+            _FORECAST_URL,
+            params={
+                "latitude": lat,
+                "longitude": lon,
+                "daily": "temperature_2m_max,temperature_2m_min,"
+                         "precipitation_probability_max,weather_code",
+                "forecast_days": days,
+                "timezone": "Asia/Shanghai",
+            },
+            timeout=_TIMEOUT,
+        )
+        resp.raise_for_status()
+        daily = (resp.json().get("daily") or {})
+        dates = daily.get("time") or []
+        t_max = daily.get("temperature_2m_max") or []
+        t_min = daily.get("temperature_2m_min") or []
+        probs = daily.get("precipitation_probability_max") or []
+        codes = daily.get("weather_code") or []
+        if not dates or not t_max or not t_min:
+            return None
+        out_days = []
+        for i, d in enumerate(dates):
+            hi = t_max[i] if i < len(t_max) and t_max[i] is not None else None
+            lo = t_min[i] if i < len(t_min) and t_min[i] is not None else None
+            prob = probs[i] if i < len(probs) else None
+            out_days.append({
+                "date": d,
+                "temp_max": round(float(hi), 1) if hi is not None else None,
+                "temp_min": round(float(lo), 1) if lo is not None else None,
+                "rain_probability": prob,
+                "weather_code": int(codes[i]) if i < len(codes) and codes[i] is not None else None,
+            })
+        return {"city": city, "days": out_days, "source": "open-meteo-forecast"}
+    except Exception:
+        return None
+
+
+def forecast_summary(forecast: dict, days: int | None = None) -> dict | None:
+    """把逐日预报压缩成推荐可用的「代表温度 + 区间 + 降雨」。
+
+    代表温度取各日 (max+min)/2 的均值，贴合 26℃ 穿衣法用的是体感均温；
+    同时给出整段的最低温/最高温供文案标注区间，降雨取期间最大概率。
+    """
+    if not forecast or not forecast.get("days"):
+        return None
+    day_list = forecast["days"][:days] if days else forecast["days"]
+    day_list = [d for d in day_list if d.get("temp_max") is not None and d.get("temp_min") is not None]
+    if not day_list:
+        return None
+    mids = [(d["temp_max"] + d["temp_min"]) / 2 for d in day_list]
+    rep = round(sum(mids) / len(mids), 1)
+    t_min = min(d["temp_min"] for d in day_list)
+    t_max = max(d["temp_max"] for d in day_list)
+    probs = [d.get("rain_probability") for d in day_list if d.get("rain_probability") is not None]
+    rain_prob = max(probs) if probs else None
+    rain = "有降雨" if (rain_prob is not None and rain_prob >= 50) else "无降雨"
+    return {
+        "city": forecast.get("city", ""),
+        "temp": rep,
+        "temp_min": t_min,
+        "temp_max": t_max,
+        "rain": rain,
+        "rain_probability": rain_prob,
+        "source": forecast.get("source", "open-meteo-forecast"),
+        "day_count": len(day_list),
+        "start_date": day_list[0].get("date"),
+        "end_date": day_list[-1].get("date"),
+    }
+
+
+@router.get("/forecast")
+def get_forecast(city: str = Query(default="福州", description="城市名，如 厦门"),
+                 days: int = Query(default=7, ge=1, le=16, description="预报天数，1-16")):
+    """获取未来 N 天逐日预报（旅游场景）。
+
+    返回 data.days 为逐日 {date,temp_max,temp_min,rain_probability,weather_code}；
+    外部失败时 data 为 None（不伪造未来天气），source 标识来源。
+    """
+    city = (city or "").strip()
+    if not city:
+        return {"code": 400, "msg": "城市不能为空", "data": None}
+    cache_key = f"forecast:{city}:{days}"
+    now = time.time()
+    cached = _cache.get(cache_key)
+    if cached and now - cached[0] < _CACHE_TTL:
+        return ok(data=cached[1] | {"cached": True})
+    data = _fetch_forecast(city, days)
+    if data is not None:
+        _cache[cache_key] = (now, data)
+        return ok(data=data)
+    return ok(data={"city": city, "days": [], "source": "unavailable",
+                    "message": "暂时无法获取该城市未来天气，请稍后再试"})
+
+
 @router.get("")
 def get_weather(city: str = Query(default="福州", description="城市名，如 上海")):
     """获取天气（温度 + 降雨）。

@@ -76,6 +76,45 @@
       "dimension": "constraint",
       "condition": { "exclude_color_from_session": true },
       "source": "用户对话约束"
+    },
+    {
+      "rule_id": "F009",
+      "name": "26℃穿衣法-保暖总额上限",
+      "dimension": "temperature",
+      "condition": { "comfort_temp": 26, "max_degrees_over_need": 4, "counted_categories": ["上装", "外套", "连衣裙", "围巾"] },
+      "note": "衣物折算度数总和 = 26 - 气温。超出 4℃ 判为明显穿多，直接淘汰。折算表：暖度1→1℃/2→2℃/3→4℃/4→6℃/5→9℃；围巾按名字识别固定 3℃。",
+      "source": "26℃穿衣法（民间经验公式，舒适度参考中国气象局18-25℃结论）"
+    },
+    {
+      "rule_id": "F010",
+      "name": "26℃穿衣法-保暖总额下限",
+      "dimension": "temperature",
+      "condition": { "min_degrees_below_need": 5 },
+      "note": "折算度数低于需求 5℃ 判为明显穿少，淘汰。",
+      "source": "26℃穿衣法"
+    },
+    {
+      "rule_id": "F011",
+      "name": "高温清凉夏装",
+      "dimension": "temperature",
+      "condition": { "temp_gt": 26, "max_single_degrees": 2 },
+      "note": "气温高于 26℃ 时上身只能用折算 ≤2℃ 的薄款，针织衫/毛衣/大衣/羽绒服不合规。",
+      "source": "26℃穿衣法 + 气象部门夏季着装建议"
+    },
+    {
+      "rule_id": "F012",
+      "name": "单品级极端错配淘汰",
+      "dimension": "temperature",
+      "condition": { "max_single_degrees_over_need": 2 },
+      "note": "单件折算度数超过总需求 2℃ 以上（如19℃穿羽绒服9℃）直接淘汰整套，避免一件厚衣毁掉搭配。",
+      "source": "26℃穿衣法 + 洋葱式分层原则"
+    },
+    {
+      "rule_id": "F013",
+      "name": "雨天禁凉鞋/拖鞋",
+      "dimension": "weather",
+      "condition": { "rain_probability_gte": 50, "forbid_sub_category": ["凉鞋", "拖鞋"] },
+      "source": "天气适配常识"
     }
   ]
 }

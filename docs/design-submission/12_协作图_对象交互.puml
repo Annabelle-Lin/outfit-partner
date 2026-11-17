@@ -1,0 +1,31 @@
+@startuml 协作图_对象交互
+title 协作图：推荐过程对象交互
+caption 设计态：步骤 11–12 的大模型交互当前未接入，由本地模板承接，其余对象交互已实现
+
+actor 用户 as U
+
+object "前端界面" as FE
+object "对话路由 ChatRouter" as API
+object "推荐引擎 RecommendEngine" as ENG
+object "规则仓库 RuleRepository" as REPO
+object "知识库 KnowledgeIndex" as KB
+object "大模型 LLMClient" as LLM
+object "数据库会话 Session" as DB
+
+U --> FE : 1. 提交需求
+FE --> API : 2. HTTP 请求
+API --> DB : 3. 读取衣物/画像
+DB --> API : 4. 数据
+API --> ENG : 5. 推荐调用
+ENG --> REPO : 6. 取过滤/打分规则
+REPO --> ENG : 7. 规则数据
+ENG --> ENG : 8. 枚举/过滤/打分/理由
+API --> KB : 9. 知识检索（问答时）
+KB --> API : 10. 参考片段
+API --> LLM : 11. 生成文案
+LLM --> API : 12. 回复文本
+API --> DB : 13. 写方案快照/消息
+API --> FE : 14. 统一响应
+FE --> U : 15. 展示结果
+
+@enduml

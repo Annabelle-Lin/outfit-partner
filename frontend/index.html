@@ -456,6 +456,10 @@ body.gate .topbar{display:none}
 .brand-mark,.topbar .brand-mark,.auth-logo{background:#fff;overflow:hidden;box-shadow:0 2px 12px rgba(46,46,58,.18)}
 .brand-mark img,.topbar .brand-mark img,.auth-logo img{width:100%;height:100%;object-fit:cover;display:block}
 .avatar img,.me-avatar img{width:100%;height:100%;object-fit:contain;display:block}
+.pf-avatar-row{display:flex;align-items:center;gap:14px}
+.pf-avatar-box{width:72px;height:72px;border-radius:22px;overflow:hidden;cursor:pointer;border:2px dashed var(--line);background:var(--card-2);flex:none;display:grid;place-items:center;transition:.18s}
+.pf-avatar-box:hover{border-color:var(--clay)}
+.pf-avatar-box img{width:100%;height:100%;object-fit:cover;display:block}
 .mascot-hero{display:block;width:176px;height:auto;margin:-2px 0 2px;filter:drop-shadow(0 12px 26px rgba(124,108,240,.20))}
 .mascot-side{width:124px;height:auto;flex:none;filter:drop-shadow(0 10px 22px rgba(124,108,240,.16))}
 
@@ -964,6 +968,10 @@ body.gate .topbar{display:none}
             <div><div style="font-weight:600;font-size:14px">数据与隐私</div><div class="hint" style="margin-top:2px">删除账户与历史数据</div></div>
             <button class="btn btn-ghost btn-sm" style="color:var(--bad)" onclick="deleteAllData()">删除数据</button>
           </div>
+          <div class="pref-row">
+            <div><div style="font-weight:600;font-size:14px">账号登录</div><div class="hint" style="margin-top:2px">退出后返回登录 / 注册页</div></div>
+            <button class="btn btn-ghost btn-sm" onclick="confirmLogout()">退出登录</button>
+          </div>
         </div>
       </section>
 
@@ -1122,6 +1130,20 @@ body.gate .topbar{display:none}
       <button class="modal-close" onclick="closeProfileModal()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
       </button>
+    </div>
+    <div class="field">
+      <label>个人头像 <span class="opt">点击更换，可不改</span></label>
+      <div class="pf-avatar-row">
+        <div class="pf-avatar-box" id="pf-avatar-box" onclick="pickPfAvatar(event)" title="点击上传头像">
+          <img id="pf-avatar-img" src="mascot.png" alt="头像预览" />
+        </div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600;color:var(--ink-2)">上传你喜欢的图片</div>
+          <div class="hint" style="margin-top:3px">支持 jpg / png / webp，不超过 8MB</div>
+          <button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="resetPfAvatar(event)">恢复默认</button>
+        </div>
+      </div>
+      <input type="file" id="pf-avatar-file" accept="image/*" style="display:none" onchange="onPfAvatarPick(event)" />
     </div>
     <div class="field">
       <label>昵称 <span class="req">*</span></label>
@@ -3347,8 +3369,12 @@ let _chatStreamController = null;
 function _looksLikeKnowledgeQuestion(text){
   const t = String(text || '').trim();
   if (!t) return false;
-  if (/怎么|如何|为什么|哪些|什么|注意|保养|清洗|收纳|护理|技巧|搭配建议|颜色搭配|显高|显瘦/.test(t)) return true;
-  return /[?？]\s*$/.test(t) && !/换一批|推荐|配一套|换成|重新生成/.test(t);
+  // 「今天/现在/出门穿什么、配什么、搭什么」是想要具体方案，交给后端出搭配卡片，
+  // 不能被「什么」误判成知识问答（知识问答走流式，只给文字不给卡片）。
+  if (/穿什么|穿啥|穿哪|配什么|配啥|搭什么|搭啥|怎么穿|怎么搭|配饰可以搭|配饰怎么搭|给我搭|帮我搭|来一套|搭一套|推荐|换一批|配一套|换成|重新生成/.test(t)) return false;
+  // 想要一段解释/原理的知识问题才走流式问答
+  if (/为什么|有哪些种类|有哪些类型|什么种类|三色原则|是什么|什么意思|能一起穿|能不能一起|可以一起穿|注意|保养|清洗|收纳|护理|技巧|颜色搭配|显高|显瘦/.test(t)) return true;
+  return /[?？]\s*$/.test(t) && !/穿什么|穿啥|搭|推荐|配一套|换成|重新生成/.test(t);
 }
 
 function _renderAgentChatData(d, bubble){
@@ -3397,8 +3423,12 @@ function _renderAgentChatData(d, bubble){
 }
 
 async function _requestSyncChat(sid, text, bubble){
+  const _pl = { text:text };
+  // 把页面已拿到的真实天气传给后端，避免后端连不上天气 API 时用 mock 22℃ 推荐
+  const _w = _weatherPayload();
+  if (_w && _w.source && _w.source.indexOf('open-meteo') === 0) _pl.weather = _w;
   const r = await _api('/api/v1/chat/' + encodeURIComponent(sid) + '/message',
-    _json({ action:'auto', payload:{ text:text } }));
+    _json({ action:'auto', payload:_pl }));
   _renderAgentChatData(r.data || {}, bubble);
   return r.data;
 }
@@ -3685,47 +3715,6 @@ submitFeedback = function(){
   })).catch(function(){});
 };
 
-/* ========== 搭配卡片「喜欢/一般/不喜欢」→ 真实反馈，驱动用户画像更新 ========== */
-rateOutfit = function(btn, kind, outfitId){
-  const group = btn.parentElement;
-  group.querySelectorAll('.rate-btn').forEach(function(b){ b.className = 'rate-btn'; });
-  btn.classList.add('on-' + kind);
-  const label = { like:'喜欢', mid:'一般', bad:'不喜欢' }[kind];
-  const rating = { like:2, mid:1, bad:0 }[kind];
-
-  if (!W_USER_ID){
-    if (typeof toast === 'function') toast('后端未连接，本次评价未保存');
-    return;
-  }
-
-  // 卡片是 #outfit-grid 的第 idx 个子节点，对应 outfits[outfitIndex + idx]
-  let oi = -1;
-  const card = btn.closest('.outfit-card');
-  const grid = document.getElementById('outfit-grid');
-  if (card && grid){
-    const idx = Array.prototype.indexOf.call(grid.children, card);
-    if (idx >= 0) oi = outfitIndex + idx;
-  }
-
-  _api('/api/v1/feedback', _json({
-    user_id: W_USER_ID,
-    session_id: W_SESSION_ID || '',
-    outfit_id: outfitId || (W_OUTFIT_IDS[oi] || ''),
-    rating: rating,
-    tags: [],
-    comment: ''
-  })).then(function(r){
-    if (r && r.code === 0){
-      const p = (r.data && r.data.preferences) || {};
-      toast('已记录：' + label + '，画像已更新（风格偏好 ' + (p.style || '-') + '/10）');
-    } else {
-      toast('已记录：' + label);
-    }
-  }).catch(function(e){
-    toast('评价提交失败：' + (e && e.message ? e.message : '网络错误'));
-  });
-};
-
 /* ========== 首次引导问卷 → 真实写入用户资料 ========== */
 finishSetup = async function(){
   const btn = document.getElementById('setup-submit');
@@ -3779,6 +3768,63 @@ finishSetup = async function(){
 const PF_GENDER_TXT = { male:'男', female:'女' };
 const PF_BODY_TXT = { slim:'偏瘦', standard:'标准', curvy:'偏丰' };
 let pfState = { gender:'', body:'' };
+let PF_AVATAR_URL = '';            // 弹窗内当前头像地址（'' 表示默认吉祥物）
+const PF_DEFAULT_AVATAR = 'mascot.png';
+
+/* ---------- 头像：选图 → 上传 → 预览，保存时随资料一起 PUT ---------- */
+function pickPfAvatar(ev){
+  if (ev) ev.preventDefault();
+  const f = document.getElementById('pf-avatar-file');
+  if (f) f.click();
+}
+
+function resetPfAvatar(ev){
+  if (ev) ev.stopPropagation();
+  PF_AVATAR_URL = '';
+  const img = document.getElementById('pf-avatar-img');
+  if (img) img.src = PF_DEFAULT_AVATAR;
+  const f = document.getElementById('pf-avatar-file');
+  if (f) f.value = '';
+}
+
+async function onPfAvatarPick(e){
+  const file = (e.target.files || [])[0];
+  if (!file) return;
+  if (!/^image\//.test(file.type)){ toast('请选择图片文件'); return; }
+
+  const localUrl = URL.createObjectURL(file);
+  const img = document.getElementById('pf-avatar-img');
+  if (img) img.src = localUrl;   // 先本地预览
+
+  try {
+    const fd = new FormData();
+    fd.append('file', file, file.name || 'avatar.jpg');
+    const res = await fetch(API_BASE + '/api/v1/upload/image', {
+      method: 'POST', body: fd, headers: _authHeaders()
+    });
+    const d = await res.json().catch(function(){ return null; });
+    if (!res.ok || !d || d.code !== 0){
+      throw new Error((d && (d.msg || d.detail)) || '上传失败');
+    }
+    PF_AVATAR_URL = d.data.image_url;
+    if (img) img.src = PF_AVATAR_URL;
+    toast('头像已上传，记得点保存');
+  } catch (err) {
+    PF_AVATAR_URL = '';
+    if (img) img.src = PF_DEFAULT_AVATAR;
+    toast('头像上传失败：' + (err.message || '请重试'));
+  }
+}
+
+/* 退出登录：二次确认后清会话并回到登录 / 注册页 */
+async function confirmLogout(){
+  const sure = await askConfirm({
+    title: '退出登录',
+    desc: '退出后将返回登录页，需要重新登录才能查看你的衣橱。',
+    okText: '退出登录'
+  });
+  if (sure) logout();
+}
 
 function _meSetText(id, txt){
   const el = document.getElementById(id);
@@ -3834,7 +3880,13 @@ async function _loadMeStats(){
 function renderMe(u){
   if (!u) return;
   const nick = u.nickname || '未命名';
-  // 头像已改为品牌吉祥物，不再用昵称首字覆盖
+  // 头像：用户自定义优先，未设置则用默认吉祥物（个人页 + 侧栏同步）
+  const avatar = u.avatar || PF_DEFAULT_AVATAR;
+  ['me-avatar', 'sb-avatar'].forEach(function(id){
+    const box = document.getElementById(id);
+    const img = box && box.querySelector('img');
+    if (img) img.src = avatar;
+  });
   _meSetText('me-nickname', nick);
 
   const body = u.body || {};
@@ -3855,7 +3907,6 @@ function renderMe(u){
   _meSetText('me-style-hint', styles.length ? styles.join(' · ') : '尚未设置');
 
   // 同步侧边栏底部用户卡片，保持与资料页一致
-  // 头像已改为品牌 logo 图标，不再用昵称首字覆盖
   _meSetText('sb-name', nick);
   const sbParts = [];
   if (u.city) sbParts.push(u.city);
@@ -3917,6 +3968,14 @@ async function openProfileModal(){
   } catch (e) { /* 忽略，降级为空表单 */ }
 
   const body = (u && u.body) || {};
+  // 头像：优先用已加载资料里的 avatar，其次用个人页当前显示
+  PF_AVATAR_URL = (u && u.avatar) || '';
+  const shown = document.querySelector('#me-avatar img');
+  const previewSrc = PF_AVATAR_URL || (shown ? shown.getAttribute('src') : '') || PF_DEFAULT_AVATAR;
+  const pfImg = document.getElementById('pf-avatar-img');
+  if (pfImg) pfImg.src = previewSrc;
+  const pfFile = document.getElementById('pf-avatar-file');
+  if (pfFile) pfFile.value = '';
   document.getElementById('pf-nickname').value = (u && u.nickname) || '';
   document.getElementById('pf-city').value = (u && u.city) || '';
   document.getElementById('pf-height').value = body.height_cm ? body.height_cm : '';
@@ -3955,7 +4014,9 @@ async function saveProfile(){
     nickname: nickname,
     city: (document.getElementById('pf-city').value || '').trim(),
     gender: pfState.gender,
-    styles: styles
+    styles: styles,
+    // 头像：显式传当前值（含空串表示恢复默认），让后端可清除旧头像
+    avatar: PF_AVATAR_URL || ''
   };
   if (heightRaw !== '' || pfState.body){
     payload.body = {

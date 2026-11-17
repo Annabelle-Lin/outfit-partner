@@ -1,0 +1,98 @@
+@startuml ER图
+' 数据库概念结构：7 实体及关系
+skinparam linetype ortho
+hide circle
+
+entity "users 用户" as users {
+  * user_id : VARCHAR <<PK>>
+  --
+  nickname : VARCHAR
+  username : VARCHAR
+  password_hash : VARCHAR
+  body_shape : VARCHAR
+  city : VARCHAR
+  gender : VARCHAR
+  styles : JSON
+  pref_color : INT
+  pref_style : INT
+  pref_comfort : INT
+  pref_occasion : INT
+  pref_fabric : INT
+  created_at : DATETIME
+}
+
+entity "clothing_items 衣物单品" as items {
+  * item_id : VARCHAR <<PK>>
+  --
+  user_id : VARCHAR
+  name : VARCHAR
+  category : VARCHAR
+  sub_category : VARCHAR
+  color : VARCHAR
+  season : VARCHAR
+  warmth_level : INT
+  formality_level : INT
+  image_url : VARCHAR
+}
+
+entity "chat_sessions 会话" as sessions {
+  * session_id : VARCHAR <<PK>>
+  --
+  user_id : VARCHAR
+  status : VARCHAR
+  occasion : VARCHAR
+  weather_temp : FLOAT
+  constraints : JSON
+  remaining_count : INT
+}
+
+entity "chat_messages 消息" as messages {
+  * message_id : VARCHAR <<PK>>
+  --
+  session_id : VARCHAR <<FK>>
+  role : VARCHAR
+  action : VARCHAR
+  content : VARCHAR
+  payload : JSON
+}
+
+entity "feedback_records 反馈" as feedback {
+  * record_id : VARCHAR <<PK>>
+  --
+  user_id : VARCHAR
+  session_id : VARCHAR
+  outfit_id : VARCHAR
+  rating : INT
+  evidence : JSON
+}
+
+entity "purchase_evaluations 购前评估" as purchase {
+  * evaluation_id : VARCHAR <<PK>>
+  --
+  user_id : VARCHAR
+  target_item : JSON
+  result : JSON
+}
+
+entity "outfit_records 搭配方案" as outfits {
+  * outfit_id : VARCHAR <<PK>>
+  --
+  user_id : VARCHAR
+  session_id : VARCHAR
+  items : JSON
+  score : FLOAT
+  reason_points : JSON
+}
+
+' 显式外键（数据库级）
+messages }o--|| sessions : "session_id 外键"
+
+' 逻辑关联（应用层 user_id / session_id 维护，非数据库外键）
+users ||--o{ items : "拥有"
+users ||--o{ sessions : "发起"
+users ||--o{ feedback : "提交"
+users ||--o{ purchase : "发起"
+users ||--o{ outfits : "获得"
+sessions ||--o{ outfits : "产生"
+
+@enduml

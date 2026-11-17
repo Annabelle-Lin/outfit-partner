@@ -1,0 +1,60 @@
+@startuml 架构图
+title 系统总体架构图
+caption 目标架构：规则引擎、知识库、天气与数据层已实现；智谱 GLM 大模型当前未接入，对话机制待确认
+
+skinparam componentStyle rectangle
+
+package "表示层" {
+  [单页应用 frontend/index.html] as FE
+}
+
+package "接口层（FastAPI）" {
+  [用户模块] as M1
+  [衣物模块] as M2
+  [天气模块] as M3
+  [对话模块] as M4
+  [反馈模块] as M5
+  [购前评估模块] as M6
+  [上传模块] as M7
+  [鉴权中间件] as AUTH
+}
+
+package "Agent 推理层" {
+  [推荐引擎] as ENG
+  [知识库检索] as KB
+  [大模型调用] as LLM
+  [单品画像] as GP
+}
+
+database "SQLite\n（7 张表）" as DB
+folder "规则库 JSON" as RULES
+folder "领域知识库 Markdown" as DOCS
+cloud "Open-Meteo" as OM
+cloud "智谱 GLM-4-Flash" as GLM
+
+FE --> AUTH
+AUTH --> M1
+AUTH --> M2
+AUTH --> M3
+AUTH --> M4
+AUTH --> M5
+AUTH --> M6
+AUTH --> M7
+
+M4 --> ENG
+M4 --> KB
+M6 --> ENG
+M7 --> LLM
+ENG --> RULES
+ENG --> GP
+KB --> DOCS
+M3 --> OM
+LLM --> GLM
+
+M1 --> DB
+M2 --> DB
+M4 --> DB
+M5 --> DB
+M6 --> DB
+
+@enduml

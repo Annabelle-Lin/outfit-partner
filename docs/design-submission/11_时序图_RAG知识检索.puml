@@ -1,0 +1,32 @@
+@startuml 时序图_RAG知识检索
+title 时序图：RAG 知识检索流程
+caption 设计态：BM25 检索已实现；大模型未接入，当前走原文片段分支，生成式回答待模型接入
+
+actor 用户 as U
+participant "前端" as FE
+participant "对话路由" as API
+participant "知识库 kb.py" as KB
+participant "BM25 索引" as IDX
+participant "大模型 llm.py" as LLM
+database "消息表" as DB
+
+U -> FE : 提出穿搭问题
+FE -> API : POST /message（action=auto）
+API -> API : 识别为 knowledge
+API -> KB : search(query)
+KB -> KB : 原词通道 + 同义词扩展通道
+KB -> IDX : 双通道 BM25 打分
+IDX --> KB : 排名
+KB -> KB : RRF 融合取 Top5
+KB --> API : 片段（含来源标注）
+alt 大模型可用
+  API -> LLM : 片段+对话上下文
+  LLM --> API : 带来源回答
+else 无密钥/失败
+  API -> API : 整理原文片段（降级）
+end
+API -> DB : 保存问答消息
+API --> FE : 回答 + answer_source
+FE --> U : 展示答案与出处
+
+@enduml
