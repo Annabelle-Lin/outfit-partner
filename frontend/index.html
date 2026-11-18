@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>今遂 · 智能穿搭</title>
-<link rel="icon" type="image/png" href="logo-icon.png" />
+<link rel="icon" type="image/png" href="logo-icon.png?v=2" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Noto+Serif+SC:wght@500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -205,11 +205,11 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
 /* ============ 视图：登录 ============ */
 .auth-wrap{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:30px}
 .auth-card{width:100%;max-width:420px;background:var(--card);border:1px solid var(--line-soft);border-radius:28px;box-shadow:var(--shadow-lg);padding:40px 38px;position:relative;overflow:hidden}
-.auth-card::before{content:"";position:absolute;top:-60px;right:-60px;width:180px;height:180px;background:radial-gradient(circle,var(--clay-soft),transparent 70%)}
+.auth-card::before{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:240px;height:210px;background:url('logo-icon.png?v=2') center/contain no-repeat;opacity:.08;pointer-events:none}
 .auth-logo{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,var(--clay),var(--clay-deep));display:grid;place-items:center;color:#fff;margin-bottom:20px;box-shadow:0 10px 24px rgba(124,108,240,.4)}
 .auth-logo svg{width:28px;height:28px}
 .auth-title{font-family:var(--serif);font-size:28px;font-weight:600}
-.auth-sub{color:var(--ink-3);font-size:14px;margin:6px 0 26px}
+.auth-sub{color:var(--ink-3);font-size:14px;margin:4px 0 18px}
 .auth-toggle{display:flex;background:var(--paper-2);border-radius:12px;padding:4px;margin-bottom:24px}
 .auth-toggle button{flex:1;border:none;background:none;padding:10px;font-size:14px;font-weight:600;color:var(--ink-3);border-radius:9px;cursor:pointer;transition:.2s}
 .auth-toggle button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow-sm)}
@@ -282,6 +282,7 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
 .cat-card.on{background:var(--ink);color:#F1F1FA;border-color:var(--ink)}
 .cat-card .c-ico{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;margin-bottom:12px}
 .cat-card .c-ico svg{width:20px;height:20px}
+.cat-card .c-ico img{width:100%;height:100%;object-fit:contain;display:block}
 .cat-card .c-name{font-family:var(--serif);font-size:16px;font-weight:600}
 .cat-card .c-count{font-size:12px;color:var(--ink-3)}
 .cat-card.on .c-count{color:#9E9FB8}
@@ -337,8 +338,9 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
 .msg{display:flex;gap:12px;max-width:86%}
 .msg.user{align-self:flex-end;flex-direction:row-reverse}
 .msg-ava{width:36px;height:36px;border-radius:12px;flex:none;display:grid;place-items:center;font-family:var(--serif);font-weight:600}
-.msg.ai .msg-ava{background:linear-gradient(135deg,var(--clay),var(--clay-deep));color:#fff}
+.msg.ai .msg-ava{background:transparent;color:#fff}
 .msg.user .msg-ava{background:var(--sage-soft);color:#3A4A2C}
+.msg-ava img{width:100%;height:100%;object-fit:contain;display:block}
 .msg-bubble{background:var(--card);border:1px solid var(--line-soft);border-radius:16px;padding:13px 16px;font-size:14px;line-height:1.65;box-shadow:var(--shadow-sm);color:var(--ink)}
 .msg.user .msg-bubble{background:var(--ink);color:#F1F1FA;border-color:var(--ink)}
 .chat-outfit{margin-top:12px;display:grid;gap:10px}
@@ -530,7 +532,7 @@ body.gate .topbar{display:none}
   <!-- ============ 侧边栏 ============ -->
   <aside class="sidebar">
     <div class="brand">
-      <div class="brand-mark"><img src="logo-icon.png" alt="今遂 JINSUI" /></div>
+      <div class="brand-mark"><img src="logo-icon.png?v=2" alt="今遂 JINSUI" /></div>
       <div>
         <div class="brand-name">今遂</div>
         <div class="brand-sub">JINSUI</div>
@@ -580,7 +582,7 @@ body.gate .topbar{display:none}
   <!-- ============ 主区域 ============ -->
   <main class="main" id="main">
     <div class="topbar">
-      <div class="brand-mark"><img src="logo-icon.png" alt="今遂 JINSUI" /></div>
+      <div class="brand-mark"><img src="logo-icon.png?v=2" alt="今遂 JINSUI" /></div>
       <div class="ttl">今遂</div>
     </div>
     <div class="main-inner">
@@ -590,7 +592,6 @@ body.gate .topbar{display:none}
         <div class="auth-wrap">
           <div class="auth-card">
             <img class="mascot-hero" src="mascot.png" alt="遂遂" />
-            <div class="auth-logo"><img src="logo-icon.png" alt="今遂 JINSUI" /></div>
             <div class="auth-title">今遂 JINSUI</div>
             <div class="auth-sub">根据你的衣橱、天气与场景，生成真正能穿的穿搭建议。</div>
             <div class="auth-toggle">
@@ -1267,6 +1268,16 @@ const BIG_ICON = {
   '鞋':'M3 18c1 0 2-1 3-1 2 0 3 1 4 1s2-1 4-1 2 1 4 1 2-1 3-1',
   '配饰':'M12 3a4 4 0 0 0-4 4h8a4 4 0 0 0-4-4Z'
 };
+/* 大品类图片（对应 frontend 目录下的服饰插图） */
+const BIG_IMG = {
+  '上衣':'上衣.png',
+  '下装':'裤装.png',
+  '连衣装':'连衣裙.png',
+  '套装':'套装.png',
+  '外套':'外套.png',
+  '鞋':'鞋.png',
+  '配饰':'配饰.png'
+};
 
 // 衣物数据一律来自后端 GET /api/v1/clothing，前端不再保留任何演示降级数据
 let garments = [];
@@ -1581,9 +1592,7 @@ function renderCats(){
         renderCats(); renderGarments();
       };
       el.innerHTML =
-        '<div class="c-ico" style="background:' + BIG_COLOR[cat] + '22;color:' + BIG_COLOR[cat] + '">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="' + BIG_ICON[cat] + '"/></svg>' +
-        '</div>' +
+        '<div class="c-ico"><img src="' + (BIG_IMG[cat] || '') + '" alt="' + cat + '" /></div>' +
         '<div class="c-name">' + cat + '</div>' +
         '<div class="c-count">' + count + ' 件 · ' + CATEGORY_TREE[cat].length + ' 个细分类</div>';
       grid.appendChild(el);
@@ -2036,7 +2045,7 @@ function addMsg(who, html){
   const sc = $('#chat-scroll');
   const el = document.createElement('div');
   el.className = 'msg ' + who;
-  el.innerHTML = `<div class="msg-ava">${who==='ai'?'AI':'我'}</div><div class="msg-bubble">${html}</div>`;
+  el.innerHTML = `<div class="msg-ava">${who==='ai'?'<img src="mascot.png" alt="遂遂" />':'我'}</div><div class="msg-bubble">${html}</div>`;
   sc.appendChild(el);
   sc.scrollTop = sc.scrollHeight;
   return el;
@@ -3151,7 +3160,7 @@ function renderChatOutfitReal(plan){
     + '</div></div></div>';
   const el = document.createElement('div');
   el.className = 'msg ai';
-  el.innerHTML = '<div class="msg-ava">AI</div><div class="msg-bubble">' + html + '</div>';
+  el.innerHTML = '<div class="msg-ava"><img src="mascot.png" alt="遂遂" /></div><div class="msg-bubble">' + html + '</div>';
   sc.appendChild(el);
   sc.scrollTop = sc.scrollHeight;
 }
@@ -3233,7 +3242,7 @@ function _renderCompareCard(d){
   html += '</div></div>';
   const el = document.createElement('div');
   el.className = 'msg ai';
-  el.innerHTML = '<div class="msg-ava">AI</div><div class="msg-bubble">' + html + '</div>';
+  el.innerHTML = '<div class="msg-ava"><img src="mascot.png" alt="遂遂" /></div><div class="msg-bubble">' + html + '</div>';
   sc.appendChild(el);
   sc.scrollTop = sc.scrollHeight;
 }
