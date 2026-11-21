@@ -10,6 +10,7 @@ import tempfile
 DB = os.path.join(tempfile.mkdtemp(), "phase1.db")
 os.environ["DATABASE_URL"] = f"sqlite:///{DB}"
 os.environ.pop("ZHIPU_API_KEY", None)
+os.environ.pop("DEEPSEEK_API_KEY", None)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from fastapi.testclient import TestClient  # noqa: E402

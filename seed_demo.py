@@ -10,24 +10,32 @@ wardrobe-agent · 演示衣橱数据填充脚本（可选）
 使用前提：
   1. 后端已启动（默认 http://127.0.0.1:8300，与 README 的 uvicorn --port 8300 一致）
      若你用了别的端口，把地址作为参数传进来即可
-  2. 先打开一次网页，让它自动注册用户（或手动调用 /api/v1/user/register）
+  2. 业务接口均需鉴权。无参数运行时脚本会自己注册一个演示账号
+     并全程携带登录凭证；若指定已有 user_id，则需通过环境变量
+     WARDROBE_TOKEN 提供该账号的登录 token。
 
 用法：
-  python seed_demo.py                              # 自动选第一个已有用户，连 8300
-  python seed_demo.py u_xxxxxxxx                   # 指定 user_id，连 8300
+  python seed_demo.py                              # 自动注册演示账号，连 8300
+  WARDROBE_TOKEN=xxx python seed_demo.py u_xxxx   # 指定已有用户
   python seed_demo.py http://127.0.0.1:8000        # 只改端口
   python seed_demo.py u_xxxxxxxx http://127.0.0.1:8000   # 两个都指定
   （user_id 与 URL 的顺序可以任意互换）
 
-重要（踩坑提示）：
+重要（踩坑提示，2026-11-19 按 rules/clothing_meta.json 重新核对）：
   category / sub_category / color / color_brightness / season / fit_* /
   fabric / style / occasion 都必须严格取自 rules/clothing_meta.json 的枚举值。
-  例如一级分类只能是 上装/下装/外套/鞋/连衣裙/配饰（不是「鞋履」），
-  color_brightness 只能填「亮色」或「暗色」（不是「亮」「中」）。
-  否则规则 F006「品类完整性」校验失败，推荐结果会变成 0 套。
+  - 一级分类白名单是 上衣/下装/连衣装/套装/外套/鞋/配饰
+    （旧版的「上装」「连衣裙」已不在白名单，会直接 422）。
+  - sub_category 必须属于该一级分类下的二级列表，且校验不走 alias 归一：
+    「短袖」要写「T恤」、「阔腿裤」要写「长裤」。
+  - color_brightness 只能填「亮色」或「暗色」（不是「亮」「中」）。
+  - warmth_level / formality_level 必须是 1-5 的整数。
+  否则接口 422，或规则 F006「品类完整性」校验失败，推荐结果会变成 0 套。
 """
 import json
+import os
 import sys
+import urllib.error
 import urllib.request
 
 # 参数顺序随意：URL 放第 1 个或第 2 个都能识别，剩余的非 URL 参数当作 user_id
@@ -36,38 +44,73 @@ _urls = [a for a in sys.argv[1:] if a.startswith("http")]
 BASE = (_urls[0] if _urls else "http://127.0.0.1:8300").rstrip("/")
 API = BASE + "/api/v1"
 
+# 所有 /api/v1 业务接口都受 AuthMiddleware 保护；register/login 是白名单。
+TOKEN = os.environ.get("WARDROBE_TOKEN", "")
+DEMO_USERNAME = "wardrobe_demo"
+DEMO_PASSWORD = "demo123456"
+
+# 字段顺序：
+# name, category, sub_category, color, color_brightness, season,
+# fit_snug, fit_silhouette, fabric, style, occasion, warmth_level, formality_level
 DEMO = [
-    ("雾霾蓝衬衫", "上装", "衬衫", "蓝", "暗色", "四季", "合身", "直筒", "棉", "通勤", ["通勤", "正式"], 3, 4),
-    ("白色廓形衬衫", "上装", "衬衫", "白", "亮色", "四季", "宽松", "A字", "棉", "简约", ["通勤", "约会"], 3, 4),
-    ("白色基础T恤", "上装", "短袖", "白", "亮色", "夏", "宽松", "直筒", "棉", "基础款", ["居家", "出游"], 2, 1),
-    ("燕麦色针织开衫", "上装", "针织衫", "米", "亮色", "秋", "宽松", "直筒", "针织", "甜美", ["约会", "出游"], 4, 2),
-    ("黑色阔腿西裤", "下装", "阔腿裤", "黑", "暗色", "四季", "宽松", "阔腿", "混纺", "通勤", ["通勤", "正式"], 3, 4),
-    ("浅蓝直筒牛仔裤", "下装", "牛仔裤", "蓝", "亮色", "四季", "合身", "直筒", "牛仔", "休闲", ["出游", "上课"], 3, 2),
-    ("黑色半身裙", "下装", "半身裙", "黑", "暗色", "秋", "合身", "A字", "混纺", "简约", ["约会", "通勤"], 3, 3),
-    ("卡其色风衣", "外套", "风衣", "卡其", "亮色", "秋", "宽松", "直筒", "混纺", "通勤", ["通勤", "正式"], 4, 4),
-    ("黑色乐福鞋", "鞋", "皮鞋", "黑", "暗色", "四季", "", "", "皮革", "通勤", ["通勤", "正式"], 2, 4),
-    ("小白鞋", "鞋", "帆布鞋", "白", "亮色", "四季", "", "", "棉", "休闲", ["出游", "上课"], 2, 1),
+    ("雾霾蓝衬衫",     "上衣", "衬衫",   "蓝",   "暗色", "四季", "合身", "直筒", "棉",   "通勤",   ["通勤", "正式"], 3, 4),
+    ("白色廓形衬衫",   "上衣", "衬衫",   "白",   "亮色", "四季", "宽松", "A字",  "棉",   "简约",   ["通勤", "约会"], 3, 4),
+    ("白色基础T恤",    "上衣", "T恤",    "白",   "亮色", "夏",   "宽松", "直筒", "棉",   "基础款", ["居家", "出游"], 2, 1),
+    ("燕麦色针织开衫", "上衣", "针织衫", "米",   "亮色", "秋",   "宽松", "直筒", "针织", "甜美",   ["约会", "出游"], 4, 2),
+    ("黑色阔腿西裤",   "下装", "长裤",   "黑",   "暗色", "四季", "宽松", "阔腿", "混纺", "通勤",   ["通勤", "正式"], 3, 4),
+    ("浅蓝直筒牛仔裤", "下装", "牛仔裤", "蓝",   "亮色", "四季", "合身", "直筒", "牛仔", "休闲",   ["出游", "上课"], 3, 2),
+    ("黑色半身裙",     "下装", "半身裙", "黑",   "暗色", "秋",   "合身", "A字",  "混纺", "简约",   ["约会", "通勤"], 3, 3),
+    ("卡其色风衣",     "外套", "风衣",   "卡其", "亮色", "秋",   "宽松", "直筒", "混纺", "通勤",   ["通勤", "正式"], 4, 4),
+    ("黑色乐福鞋",     "鞋",   "乐福鞋", "黑",   "暗色", "四季", "",     "",     "皮革", "通勤",   ["通勤", "正式"], 2, 4),
+    ("小白鞋",         "鞋",   "帆布鞋", "白",   "亮色", "四季", "",     "",     "棉",   "休闲",   ["出游", "上课"], 2, 1),
 ]
 
 
 def call(path, body=None, method="GET"):
     data = json.dumps(body).encode("utf-8") if body is not None else None
+    headers = {"Content-Type": "application/json"}
+    if TOKEN:
+        headers["Authorization"] = "Bearer " + TOKEN
     req = urllib.request.Request(
-        API + path, data=data,
-        headers={"Content-Type": "application/json"}, method=method)
+        API + path, data=data, headers=headers, method=method)
     with urllib.request.urlopen(req, timeout=20) as r:
         return json.load(r)
 
 
 def pick_user():
+    """返回 (user_id, token)。
+
+    - 指定 user_id：要求环境变量 WARDROBE_TOKEN，且 token 归属必须与该
+      user_id 一致（AuthMiddleware 会做归属校验，否则 403）。
+    - 未指定：注册一个固定演示账号；若已注册过（409）则直接登录复用。
+      register 现在必填 password，且 user_id 在 data.user.user_id。
+    """
     if _args:
-        return _args[0]
-    r = call("/user/register", {"nickname": "林晓"}, "POST")
-    return r["data"]["user_id"]
+        if not TOKEN:
+            raise RuntimeError("指定 user_id 时请设置环境变量 WARDROBE_TOKEN=<该账号的登录token>")
+        return _args[0], TOKEN
+
+    reg = {"nickname": "林晓", "username": DEMO_USERNAME, "password": DEMO_PASSWORD}
+    try:
+        r = call("/user/register", reg, "POST")
+    except urllib.error.HTTPError as e:
+        if e.code != 409:
+            raise
+        r = call("/user/login",
+                 {"username": DEMO_USERNAME, "password": DEMO_PASSWORD}, "POST")
+
+    d = r.get("data") or {}
+    user = d.get("user") or {}
+    uid = user.get("user_id") or d.get("user_id")
+    token = d.get("token") or ""
+    if not uid or not token:
+        raise RuntimeError("注册/登录未返回 user_id 与 token：" + json.dumps(d, ensure_ascii=False)[:200])
+    return uid, token
 
 
 def main():
-    uid = pick_user()
+    global TOKEN
+    uid, TOKEN = pick_user()
     print("user_id =", uid)
 
     existing = call("/clothing?user_id=%s&page_size=100" % uid)["data"]
@@ -91,6 +134,9 @@ def main():
                 ok += 1
             else:
                 print("跳过", n, r.get("msg"))
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode("utf-8", "replace")[:200]
+            print("失败", n, "HTTP", e.code, detail)
         except Exception as e:
             print("失败", n, e)
 
@@ -103,11 +149,11 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        print("\n[连接失败]", e)
+        print("\n[执行失败]", e)
         print("当前目标地址：", API)
         print("请确认：")
         print("  1) 后端已启动，且端口与上面的地址一致")
         print("     启动命令：uvicorn app.main:app --reload --port 8300")
-        print("  2) 先访问一次 http://127.0.0.1:8300/ 让页面注册用户")
+        print("  2) 若指定 user_id，需设置 WARDROBE_TOKEN（登录 token）")
         print("  3) 端口不同就改地址，例如：python seed_demo.py http://127.0.0.1:8000")
         sys.exit(1)

@@ -248,6 +248,8 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
 .gitem{text-align:center;width:100%;min-width:0}
 .gitem .thumb{width:52px;height:52px;margin:0 auto;border-radius:12px;position:relative;overflow:hidden;border:1px solid rgba(0,0,0,.06)}
 .gitem .thumb .fab{position:absolute;inset:0;background-size:6px 6px;opacity:.5;mix-blend-mode:overlay}
+/* 方案卡单品缩略图：盖在颜色色块之上；图片缺失/失效时隐藏，露出底层色块 */
+.gitem .thumb .g-thumb-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;border:0}
 .gitem .cat{font-size:10px;color:var(--ink-3);margin-top:5px;line-height:1.3;height:26px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .outfit-reason{font-size:13px;color:var(--ink-2);line-height:1.55;background:var(--card-2);border-radius:11px;padding:10px 12px}
 .outfit-notes{font-size:12px;color:var(--warn);display:flex;align-items:center;gap:6px}
@@ -280,8 +282,9 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
 .cat-card{cursor:pointer;padding:18px;transition:.2s;position:relative;overflow:hidden}
 .cat-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md)}
 .cat-card.on{background:var(--ink);color:#F1F1FA;border-color:var(--ink)}
-.cat-card .c-ico{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;margin-bottom:12px}
+.cat-card .c-ico{width:52px;height:52px;border-radius:13px;display:grid;place-items:center;margin-bottom:12px;overflow:hidden}
 .cat-card .c-ico svg{width:20px;height:20px}
+.cat-card .c-ico img{width:100%;height:100%;object-fit:contain}
 .cat-card .c-name{font-family:var(--serif);font-size:16px;font-weight:600}
 .cat-card .c-count{font-size:12px;color:var(--ink-3)}
 .cat-card.on .c-count{color:#9E9FB8}
@@ -295,6 +298,7 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
 .sub-card{cursor:pointer;padding:13px 12px;border-radius:12px;border:1px solid var(--line-soft);background:var(--card);transition:.18s;text-align:center}
 .sub-card:hover{border-color:var(--clay);transform:translateY(-2px);box-shadow:var(--shadow-sm)}
 .sub-card.on{background:var(--ink);color:#F1F1FA;border-color:var(--ink)}
+.sub-card .s-ico{width:40px;height:40px;object-fit:contain;display:block;margin:0 auto 8px}
 .sub-card .s-name{font-size:13.5px;font-weight:600;line-height:1.4}
 .sub-card .s-count{font-size:11.5px;color:var(--ink-3);margin-top:3px}
 .sub-card.on .s-count{color:#9E9FB8}
@@ -307,6 +311,8 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
 .cat-crumb .crumb-cur{font-weight:600;color:var(--ink-2)}
 .cat-crumb .crumb-back{margin-left:auto;cursor:pointer;font-size:12px;padding:4px 10px;border-radius:99px;border:1px solid var(--line);background:var(--card)}
 .cat-crumb .crumb-back:hover{border-color:var(--clay);color:var(--clay-deep)}
+.cat-crumb .crumb-up{cursor:pointer;font-size:12px;padding:4px 10px;border-radius:99px;border:1px solid var(--clay);background:var(--clay);color:#fff;font-weight:600}
+.cat-crumb .crumb-up:hover{background:var(--clay-deep)}
 
 .filter-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:22px 0 16px}
 .filter-label{font-size:12px;font-weight:600;color:var(--ink-3);letter-spacing:1px}
@@ -340,9 +346,22 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
 .msg.ai .msg-ava{background:linear-gradient(135deg,var(--clay),var(--clay-deep));color:#fff}
 .msg.user .msg-ava{background:var(--sage-soft);color:#3A4A2C}
 .msg-bubble{background:var(--card);border:1px solid var(--line-soft);border-radius:16px;padding:13px 16px;font-size:14px;line-height:1.65;box-shadow:var(--shadow-sm);color:var(--ink)}
+.msg-bubble .ans-p{margin:0 0 9px}
+.msg-bubble .ans-p:last-child{margin-bottom:0}
+.msg-bubble .ans-head{font-weight:700;color:var(--clay-deep,#b4623a);margin:12px 0 5px;font-size:14.5px}
+.msg-bubble .ans-head:first-child{margin-top:0}
+.msg-bubble .ans-head::before{content:'';display:inline-block;width:3px;height:13px;background:var(--clay-deep,#b4623a);border-radius:2px;margin-right:7px;vertical-align:-1px}
+.msg-bubble .ans-ref{font-size:10px;color:var(--ink-3,#9a948c);vertical-align:super;margin-left:1px}
 .msg.user .msg-bubble{background:var(--ink);color:#F1F1FA;border-color:var(--ink)}
-.chat-outfit{margin-top:12px;display:grid;gap:10px}
+.chat-outfit{margin-top:12px;display:grid;gap:10px;max-width:480px}
 .chat-outfit-card{background:var(--card-2);border:1px solid var(--line-soft);border-radius:14px;padding:14px}
+/* 对话卡片里的衣物按内容左对齐紧凑排布，不用全局的五列均分——
+   否则 3~4 件时第五列空着、单品被拉开，红圈处出现大片空隙。 */
+.chat-outfit-card .outfit-items{
+  display:flex;flex-wrap:wrap;gap:10px 14px;justify-content:flex-start;align-items:flex-start;
+}
+.chat-outfit-card .gitem{width:auto;min-width:64px;max-width:84px}
+.chat-outfit-card .gitem .thumb{width:52px;height:52px}
 
 .quick-row{display:flex;gap:8px;flex-wrap:wrap;padding:12px 0}
 .chat-input-bar{display:flex;gap:10px;align-items:flex-end;padding-top:12px;border-top:1px solid var(--line-soft)}
@@ -1215,6 +1234,30 @@ const COLOR_MAP = {
   '深蓝':'#3C4A5A','卡其':'#BFAE8E','紫':'#9A8CA8','酒红':'#7E3B3B','藏蓝':'#38445C',
   '浅蓝':'#A8C3D6','墨绿':'#4F6B57','橙':'#C88A56','奶茶':'#C9B49A','银':'#C4C4C0','黑灰':'#57534C','碎花':'#D8C7B8'
 };
+
+/* ---------- 方案卡单品缩略图 ----------
+   后端 engine._to_response 已随每个 item 带出 image_url（/uploads/xxx.jpg）。
+   有图：在颜色色块之上盖一张 object-fit:cover 的实拍缩略图；
+   无图 / 图片失效：只留颜色色块，不出现破图。
+   首页与对话两处共用这一套渲染，保证口径一致。*/
+function _safeStr(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function _outfitThumb(imgUrl, name){
+  const fab = '<div class="fab" style="background-image:radial-gradient(rgba(0,0,0,.3) 1px,transparent 1px)"></div>';
+  if (!imgUrl) return fab;
+  return fab + '<img class="g-thumb-photo" src="' + _safeStr(imgUrl) + '" alt="'
+    + _safeStr(name) + '" loading="lazy" />';
+}
+/* error 事件不冒泡，用捕获阶段统一兜底：图片 404 / 文件被删时静默隐藏，露出底层色块 */
+document.addEventListener('error', function(e){
+  const t = e.target;
+  if (t && t.tagName === 'IMG' && t.classList && t.classList.contains('g-thumb-photo')){
+    t.style.display = 'none';
+  }
+}, true);
+
 /* ===== 两级品类树：大品类 → 二级品类（与 rules/clothing_meta.json 保持一致） ===== */
 const CATEGORY_TREE = {
   '上衣': ['T恤','衬衫','Polo衫','针织衫','卫衣','毛衣','背心','吊带','马甲','打底衫'],
@@ -1268,6 +1311,15 @@ const BIG_ICON = {
   '配饰':'M12 3a4 4 0 0 0-4 4h8a4 4 0 0 0-4-4Z'
 };
 
+/* 品类图标：外包交付的规范 PNG，位于 frontend/ 根目录，由 StaticFiles 直接服务 */
+const CAT_IMG = {
+  '上衣':'上衣.png', '下装':'裤装.png', '连衣装':'连衣裙.png',
+  '套装':'套装.png', '外套':'外套.png', '鞋':'鞋.png', '配饰':'配饰.png'
+};
+const SUB_IMG = { '帽子':'帽子.png', '包包':'包png.png' };
+function catImg(cat){ return CAT_IMG[cat] || '上衣.png'; }
+function subImg(cat, sub){ return SUB_IMG[sub] || CAT_IMG[cat] || '上衣.png'; }
+
 // 衣物数据一律来自后端 GET /api/v1/clothing，前端不再保留任何演示降级数据
 let garments = [];
 
@@ -1278,7 +1330,7 @@ let outfitIndex = 0;
 
 let gColor = '白', evalColor = '米白', gStatus = 'ok', fbRate = '舒适';
 let setupGender = '';
-let state = { currentCat:'', currentSub:'', historyTab:'rec', chatStarted:false };
+let state = { currentCat:'', currentSub:'', historyTab:'rec', chatStarted:false, chatSelected:[] };
 
 /* ============================================================
    工具
@@ -1447,7 +1499,7 @@ function renderOutfits(){
     el.style.animationDelay = (i*70)+'ms';
     const items = o.items.map(it=>{
       const hex = COLOR_MAP[it.col] || '#999';
-      return `<div class="gitem"><div class="thumb" style="background:${hex}"><div class="fab" style="background-image:radial-gradient(rgba(0,0,0,.3) 1px,transparent 1px)"></div></div><div class="cat">${it.n}</div></div>`;
+      return `<div class="gitem"><div class="thumb" style="background:${hex}">${_outfitThumb(it.img, it.n)}</div><div class="cat">${it.n}</div></div>`;
     }).join('');
     el.innerHTML = `
       <div class="outfit-rank">LOOK ${String(i+1).padStart(2,'0')}</div>
@@ -1581,8 +1633,8 @@ function renderCats(){
         renderCats(); renderGarments();
       };
       el.innerHTML =
-        '<div class="c-ico" style="background:' + BIG_COLOR[cat] + '22;color:' + BIG_COLOR[cat] + '">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="' + BIG_ICON[cat] + '"/></svg>' +
+        '<div class="c-ico" style="background:' + BIG_COLOR[cat] + '22">' +
+          '<img src="' + catImg(cat) + '" alt="' + cat + '" />' +
         '</div>' +
         '<div class="c-name">' + cat + '</div>' +
         '<div class="c-count">' + count + ' 件 · ' + CATEGORY_TREE[cat].length + ' 个细分类</div>';
@@ -1602,7 +1654,8 @@ function renderCats(){
       '<span class="crumb-sep">/</span>' +
       '<span class="crumb-cur">' + cat + '</span>' +
       (state.currentSub ? '<span class="crumb-sep">/</span><span class="crumb-cur">' + state.currentSub + '</span>' : '') +
-      '<span class="crumb-back" onclick="resetCatDrill()">← 返回全部品类</span>';
+      (state.currentSub ? '<span class="crumb-up" style="margin-left:auto" onclick="goUpCategory()">↑ 返回上级分类</span>' : '') +
+      '<span class="crumb-back"' + (state.currentSub ? ' style="margin-left:8px"' : '') + ' onclick="resetCatDrill()">← 返回全部品类</span>';
   }
   grid.className = 'sub-grid';
   subs.forEach(function(sub){
@@ -1616,7 +1669,8 @@ function renderCats(){
       state.currentSub = (state.currentSub === sub) ? '' : sub;
       renderCats(); renderGarments();
     };
-    el.innerHTML = '<div class="s-name">' + sub + '</div><div class="s-count">' + count + ' 件</div>';
+    el.innerHTML = '<img class="s-ico" src="' + subImg(cat, sub) + '" alt="' + sub + '" />' +
+      '<div class="s-name">' + sub + '</div><div class="s-count">' + count + ' 件</div>';
     grid.appendChild(el);
   });
   _setWardrobeTotal(garments.length);
@@ -1625,6 +1679,15 @@ function renderCats(){
 function resetCatDrill(){
   state.currentCat = '';
   state.currentSub = '';
+  renderCats();
+  renderGarments();
+}
+function goUpCategory(){
+  if (state.currentSub){
+    state.currentSub = '';
+  } else if (state.currentCat){
+    state.currentCat = '';
+  }
   renderCats();
   renderGarments();
 }
@@ -2522,13 +2585,17 @@ async function _openHistorySession(sid){
     msgs.forEach(function(m){
       const outs = m.outfits || [];
       if (outs.length){
-        if (m.content) addMsg('ai', _esc(m.content));
+        if (m.content) addMsg('ai', _fmtAssistant(m.content));
         outs.forEach(function(o){
           try { renderChatOutfitReal(o); } catch (e) {}
         });
         return;
       }
-      addMsg(m.role === 'user' ? 'user' : 'ai', _esc(m.content || ''));
+      const msgEl = addMsg(m.role === 'user' ? 'user' : 'ai', m.role === 'user' ? _esc(m.content || '') : _fmtAssistant(m.content || ''));
+      if (m.action === 'trend' && msgEl){
+        const bubble = msgEl.querySelector('.msg-bubble');
+        if (bubble){ try { _renderTrendImages(m.images, bubble); } catch (e) {} }
+      }
     });
   } catch (e) {
     toast('加载会话失败：' + (e && e.message ? e.message : '网络错误'));
@@ -2567,6 +2634,123 @@ function _reloadEvalParams(target, record){
   toast('已回填原评估参数，确认后可重新评估');
 }
 
+/* 历史购前评估详情：后端 result 字段完整，之前「查看」只弹一句 suggestion。
+   用动态 modal（不新增静态 id，避免动契约基线）展示完整评估结论。 */
+function _evalDetailHtml(r, t){
+  const matches = (r.best_matches || []).slice(0, 4);
+  const dup = (typeof r.duplicate_score === 'number') ? Math.round(r.duplicate_score * 100) : null;
+  const dupLevel = r.duplicate_level || '';
+  const tempText = (typeof r.temperature === 'number')
+    ? (r.temperature.toFixed(1).replace(/\.0$/, '') + '℃') : '气温未知';
+  const src = r.temperature_source || '';
+  const srcText = src === 'user' ? '手动指定'
+    : (src.indexOf('weather:') === 0) ? ('实时天气 · ' + src.slice(8))
+    : (src.indexOf('season_default:') === 0) ? ('按季节估算（' + src.slice(15) + '），非实时天气')
+    : (src || '未知来源');
+  const nearest = r.nearest_item;
+  const nearestText = nearest
+    ? ('最接近「' + _esc(nearest.name || '同类单品') + '」'
+       + (r.shared_attributes && r.shared_attributes.length ? '，共同属性：' + _esc(r.shared_attributes.join('、')) : ''))
+    : '衣橱里没有同品类单品可直接比较';
+  const check = r.target_check || {};
+  const violations = (check.violations || []).map(function(v){
+    return '<li>' + _esc(v.message) + '</li>';
+  }).join('');
+  const checkHtml = (check.passed === false)
+    ? '<div class="hint" style="margin-top:10px;padding:10px 12px;border-radius:10px;background:#fff4f2;line-height:1.7">'
+        + '<b>这件单品本身不适合当前条件</b><ul style="margin:6px 0 0 18px;padding:0">' + violations + '</ul></div>'
+    : '';
+  const rows = matches.map(function(m){
+    const items = Array.isArray(m.items) ? m.items : [];
+    const names = items.map(function(it){
+      return (it.is_target ? '【新品】' : '') + (it.name || '未命名单品');
+    });
+    const score = (typeof m.score === 'number' && isFinite(m.score)) ? m.score.toFixed(1) + ' 分' : '—';
+    return '<div class="match-row" style="align-items:flex-start">'
+      + '<div class="match-pct" style="min-width:64px;font-size:13px;white-space:nowrap">' + score + '</div>'
+      + '<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px;line-height:1.6">'
+      + _esc(names.join(' + ') || '暂无单品明细') + '</div></div></div>';
+  }).join('');
+  const gap = r.wardrobe_gap || [];
+
+  return '<div class="outfit-reason" style="margin-bottom:10px">'
+    + (r.suggestion_level ? '<b>' + _esc(r.suggestion_level) + '</b>：' : '')
+    + _esc(r.suggestion || '（无结论文案）') + '</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">'
+    + '<span class="tag">重复度 ' + (dup !== null ? dup + '%' : '—') + (dupLevel ? ' · ' + _esc(dupLevel) : '') + '</span>'
+    + '<span class="tag">可搭 ' + (r.matchable_count || 0) + ' 套</span>'
+    + '<span class="tag">衣橱原有 ' + (r.closet_only_count || 0) + ' 套</span>'
+    + '<span class="tag">' + _esc(tempText) + '</span>'
+    + '</div>'
+    + '<div class="hint" style="line-height:1.8">'
+    + '评估气温：' + _esc(tempText) + '（' + _esc(srcText) + '）<br>'
+    + '重复度口径：Jaccard 相似度，' + nearestText + '<br>'
+    + '组合数口径：' + _esc(r.matchable_count_meaning || '含目标单品的合法搭配套数') + '<br>'
+    + (gap.length ? '衣橱缺少：' + _esc(gap.join('、')) : '衣橱基础品类齐全')
+    + '</div>'
+    + checkHtml
+    + (rows ? '<div style="font-size:13px;font-weight:600;color:var(--ink-3);margin:14px 0 8px">含新品的整套搭配（前 ' + matches.length + ' 套）</div>' + rows
+            : '<div class="hint" style="margin-top:12px">没有找到包含这件新品的合法搭配</div>');
+}
+
+function _showEvalDetail(it){
+  const t = (it && it.target_item) || {};
+  const r = (it && it.result) || {};
+  const old = document.getElementById('_eval_detail_modal');
+  if (old) old.remove();
+  const back = document.createElement('div');
+  back.id = '_eval_detail_modal';
+  back.className = 'modal-back open';
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.style.maxWidth = '680px';
+  const head = document.createElement('div');
+  head.className = 'modal-head';
+  head.innerHTML = '<div class="modal-title">购前评估 · ' + _esc(t.name || '未命名单品')
+    + '</div><button class="modal-close" id="_eval_detail_close" aria-label="关闭">×</button>';
+  const body = document.createElement('div');
+  body.innerHTML = '<div class="hint" style="margin-bottom:12px">'
+    + _esc([t.category, t.color].filter(Boolean).join(' · '))
+    + ' · 评估时间 ' + _esc(_fmtTime(it.created_at)) + '</div>'
+    + _evalDetailHtml(r, t);
+  modal.appendChild(head);
+  modal.appendChild(body);
+  back.appendChild(modal);
+  document.body.appendChild(back);
+  document.getElementById('_eval_detail_close').onclick = function(){ back.remove(); };
+  back.addEventListener('click', function(e){ if (e.target === back) back.remove(); });
+}
+
+/* ---------- 历史对话删除：单条 / 勾选批量 / 清空全部 ---------- */
+function _afterChatDelete(deletedIds, clearAll){
+  const del = deletedIds || [];
+  const hitChat = !!CHAT_SESSION_ID && (clearAll || del.indexOf(CHAT_SESSION_ID) >= 0);
+  const hitHome = !!W_SESSION_ID && (clearAll || del.indexOf(W_SESSION_ID) >= 0);
+  if (hitChat) _clearChatSession();
+  if (hitHome) W_SESSION_ID = null;
+  // 当前显示的会话被删掉时，别让旧消息继续挂在新的空会话上
+  if (hitChat || hitHome){
+    const sc = document.getElementById('chat-scroll');
+    if (sc) sc.innerHTML = '';
+  }
+}
+
+async function _deleteOneChatSession(uid, sid){
+  const r = await _api('/api/v1/chat/' + encodeURIComponent(sid)
+    + '?user_id=' + encodeURIComponent(uid), { method:'DELETE' });
+  if (!r || r.code !== 0) throw new Error((r && r.msg) || '删除失败');
+  return 1;
+}
+
+async function _deleteManyChatSessions(uid, ids, clearAll){
+  const r = await _api('/api/v1/chat/sessions/batch-delete',
+    _json({ user_id: uid, session_ids: ids || [], clear_all: !!clearAll }));
+  if (!r || r.code !== 0) throw new Error((r && r.msg) || '删除失败');
+  const d = r.data || {};
+  _afterChatDelete(d.deleted || [], !!clearAll);
+  return d.deleted_count || 0;
+}
+
 async function renderHistory(){
   const wrap = $('#hist-list');
   const tab = state.historyTab || 'rec';
@@ -2577,17 +2761,104 @@ async function renderHistory(){
 
   try {
     if (tab === 'rec'){
-      // 2.3 推荐评价不仅能回看，还能看到偏好增量并逐条撤销。
-      await loadFeedbackEffects(wrap);
+      // 2.3 推荐评价只列仍生效的：已撤销的记录不会再出现在这里（个人资料页仍保留证据链）
+      await loadFeedbackEffects(wrap, false);
       return;
     }
 
     if (tab === 'chat'){
-      // 1.1 历史会话：改读真正的会话列表（GET /chat/sessions），点开可还原完整问答
+      // 1.1 历史会话：GET /chat/sessions 列表 + 点开还原问答；支持单删/批删/清空
       const r = await _api('/api/v1/chat/sessions?user_id=' + encodeURIComponent(uid) + '&limit=30');
       const items = (r && r.data && r.data.items) || [];
+      // total 是后端统计的该用户全部会话数；items 只是本页（最多 30 条）
+      const total = (r && r.data && typeof r.data.total === 'number')
+        ? r.data.total : items.length;
       wrap.innerHTML = '';
-      if (!items.length){ _histEmpty(wrap, '还没有对话记录'); return; }
+      if (!items.length){ state.chatSelected = []; _histEmpty(wrap, '还没有对话记录'); return; }
+
+      // 只保留仍在本页的勾选，避免翻页/刷新后误删
+      state.chatSelected = (state.chatSelected || []).filter(function(sid){
+        return items.some(function(it){ return it.session_id === sid; });
+      });
+
+      const bar = document.createElement('div');
+      bar.className = 'card';
+      bar.style.cssText = 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px';
+      const allLab = document.createElement('label');
+      allLab.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-2);cursor:pointer';
+      const allBox = document.createElement('input');
+      allBox.type = 'checkbox'; allBox.title = '全选本页对话';
+      allBox.style.cssText = 'cursor:pointer';
+      allLab.appendChild(allBox);
+      allLab.appendChild(document.createTextNode('全选本页'));
+      const cnt = document.createElement('span');
+      cnt.style.cssText = 'font-size:12px;color:var(--ink-3);margin-left:auto';
+      const batch = document.createElement('button');
+      batch.className = 'btn btn-ghost btn-sm'; batch.textContent = '批量删除';
+      const clearAllBtn = document.createElement('button');
+      clearAllBtn.className = 'btn btn-danger btn-sm'; clearAllBtn.textContent = '清空全部对话';
+      bar.appendChild(allLab); bar.appendChild(cnt); bar.appendChild(batch); bar.appendChild(clearAllBtn);
+      wrap.appendChild(bar);
+
+      const sync = function(){
+        const n = state.chatSelected.length;
+        cnt.textContent = '已选 ' + n + ' / ' + total + ' 条'
+          + (total > items.length ? '（本页 ' + items.length + ' 条）' : '');
+        batch.disabled = n === 0;
+        allBox.checked = n === items.length;
+        allBox.indeterminate = n > 0 && n < items.length;
+        $$('#hist-list .hist-pick').forEach(function(cb){
+          cb.checked = state.chatSelected.indexOf(cb.dataset.sid) >= 0;
+        });
+      };
+      allBox.onchange = function(){
+        state.chatSelected = allBox.checked
+          ? items.map(function(it){ return it.session_id; }) : [];
+        sync();
+      };
+      state.chatSelected = state.chatSelected.filter(Boolean);
+      sync();
+
+      batch.onclick = async function(){
+        const ids = state.chatSelected.slice();
+        if (!ids.length) return;
+        const sure = await askConfirm({
+          title: '批量删除对话？',
+          desc: '将删除选中的 ' + ids.length + ' 条对话及其全部消息，删除后不可恢复。',
+          okText: '删除', danger: true
+        });
+        if (!sure) return;
+        batch.disabled = true;
+        try {
+          const n = await _deleteManyChatSessions(uid, ids, false);
+          toast('已删除 ' + n + ' 条对话');
+          state.chatSelected = [];
+          renderHistory();
+        } catch (e) {
+          batch.disabled = false;
+          toast('删除失败：' + (e && e.message ? e.message : '网络错误'));
+        }
+      };
+      clearAllBtn.onclick = async function(){
+        const sure = await askConfirm({
+          title: '清空全部对话？',
+          desc: '将删除当前账号下全部 ' + total + ' 条对话及其消息，删除后不可恢复。'
+            + String.fromCharCode(10) + '推荐评价和购前评估记录不受影响。',
+          okText: '清空', danger: true
+        });
+        if (!sure) return;
+        clearAllBtn.disabled = true;
+        try {
+          const n = await _deleteManyChatSessions(uid, [], true);
+          toast('已清空 ' + n + ' 条对话');
+          state.chatSelected = [];
+          renderHistory();
+        } catch (e) {
+          clearAllBtn.disabled = false;
+          toast('清空失败：' + (e && e.message ? e.message : '网络错误'));
+        }
+      };
+
       items.forEach(function(it){
         const last = String(it.last_message || '').replace(/\s+/g, ' ').trim();
         const city = (it.weather && it.weather.city) ? it.weather.city : '';
@@ -2595,10 +2866,47 @@ async function renderHistory(){
         const meta = _fmtTime(it.updated_at || it.created_at)
           + ' · ' + (it.message_count || 0) + ' 条消息'
           + (last ? ' · ' + last.slice(0, 24) : '');
-        wrap.appendChild(_histCard('chat', title, meta, function(){
+        const card = _histCard('chat', title, meta, function(){
           _openHistorySession(it.session_id);
-        }));
+        });
+
+        const pick = document.createElement('input');
+        pick.type = 'checkbox'; pick.className = 'hist-pick';
+        pick.dataset.sid = it.session_id; pick.title = '选择这条对话';
+        pick.style.cssText = 'flex:none;cursor:pointer';
+        pick.onchange = function(){
+          const i = state.chatSelected.indexOf(it.session_id);
+          if (pick.checked && i < 0) state.chatSelected.push(it.session_id);
+          if (!pick.checked && i >= 0) state.chatSelected.splice(i, 1);
+          sync();
+        };
+        card.insertBefore(pick, card.firstChild);
+
+        const del = document.createElement('button');
+        del.className = 'btn btn-ghost btn-sm'; del.textContent = '删除';
+        del.onclick = async function(){
+          const sure = await askConfirm({
+            title: '删除这条对话？',
+            desc: '「' + title + '」及其中的全部消息将被删除，不可恢复。',
+            okText: '删除', danger: true
+          });
+          if (!sure) return;
+          del.disabled = true;
+          try {
+            await _deleteOneChatSession(uid, it.session_id);
+            _afterChatDelete([it.session_id], false);
+            state.chatSelected = state.chatSelected.filter(function(s){ return s !== it.session_id; });
+            toast('已删除这条对话');
+            renderHistory();
+          } catch (e) {
+            del.disabled = false;
+            toast('删除失败：' + (e && e.message ? e.message : '网络错误'));
+          }
+        };
+        card.appendChild(del);
+        wrap.appendChild(card);
       });
+      sync();
       return;
     }
 
@@ -2618,7 +2926,7 @@ async function renderHistory(){
       if (res.suggestion_level) meta += ' · ' + res.suggestion_level;
       if (typeof res.temperature === 'number') meta += ' · ' + res.temperature + '℃';
 
-      const card = _histCard('eval', title, meta, function(){ toast(res.suggestion || '无额外说明'); });
+      const card = _histCard('eval', title, meta, function(){ _showEvalDetail(it); });
 
       // 历史记录不再只读：支持重新评估（回填原参数）与删除
       const actions = document.createElement('div');
@@ -2756,7 +3064,8 @@ function _mapOutfit(o, idx){
     return {
       n: r.name,
       c: _CAT_MAP[r.category] || _CAT_L1[r.category] || 'T恤',
-      col: _normColor(r.color)
+      col: _normColor(r.color),
+      img: r.image_url || ''   // 有图显图；为空时 renderOutfits 回退到颜色色块
     };
   });
   const reason = o.reason || {};
@@ -2851,8 +3160,12 @@ function _setWeatherStats(w){
     box.innerHTML = '<div class="wstat">未能识别该城市，请检查名称或换一个城市</div>';
     return;
   }
+  if (src === 'unavailable' || w.temp == null){
+    box.innerHTML = '<div class="wstat">暂时无法获取实时天气，请稍后再试</div>';
+    return;
+  }
   const rainTxt = '降雨：' + (w.rain || '未知');
-  const srcTxt = (src.indexOf('open-meteo') === 0) ? '数据源 Open-Meteo' : '数据源 降级样例';
+  const srcTxt = (src.indexOf('open-meteo') === 0) ? '数据源 Open-Meteo' : '数据源未知';
   box.innerHTML = '<div class="wstat">' + rainTxt + '</div>' +
                   '<div class="wstat">' + srcTxt + '</div>';
 }
@@ -2865,9 +3178,13 @@ function _setWeatherCond(w){
     el.textContent = '未识别该城市，暂无天气数据';
     return;
   }
+  if (src === 'unavailable' || w.temp == null){
+    el.textContent = '暂时无法获取实时天气';
+    return;
+  }
   const live = (src.indexOf('open-meteo') === 0);
   const rain = (w.rain && w.rain !== '无降雨') ? w.rain : '无降雨';
-  el.textContent = (live ? '实时天气 · Open-Meteo' : '降级样例数据') + ' · ' + rain;
+  el.textContent = (live ? '实时天气 · Open-Meteo' : '暂时无法获取实时天气') + ' · ' + rain;
 }
 
 /* 右侧：当前温度下方展示当天最高/最低温，缺数据时用 -- 占位 */
@@ -3021,7 +3338,7 @@ async function _loadRecommend(){
   return outs.length;
 }
 
-/* ---------- AI 对话接入后端（推荐 + 知识问答，支持智谱生成） ---------- */
+/* ---------- AI 对话接入后端（推荐 + 知识问答，支持 DeepSeek 生成） ---------- */
 let CHAT_SESSION_ID = '';
 
 // 1.1 session_id 持久化：刷新页面不再丢会话
@@ -3035,15 +3352,12 @@ function _setChatSession(sid){
 
 function _clearChatSession(){ _setChatSession(''); }
 
-// 1.3 额度可见：输入框上方常驻角标
+// 额度角标：后端 CHAT_QUOTA_ENABLED 默认关闭（同一会话无限对话），此处不再显示剩余次数。
+// 函数保留以供其它调用点复用；即使后端将来回传 remaining_count 也不展示，避免误导。
 function _renderQuotaBadge(remaining){
   const el = document.getElementById('chat-quota');
   if (!el) return;
-  if (remaining == null){ el.innerHTML = ''; return; }
-  const n = Number(remaining) || 0;
-  el.innerHTML = n > 0
-    ? '本次会话剩余推荐额度 <b>' + n + '</b> 次'
-    : '<span style="color:var(--clay-deep)">额度已用完，点击右上角「新对话」重置</span>';
+  el.innerHTML = '';
 }
 
 // 最近一次天气接口的原始返回（含 temp / rain / rain_probability / source）。
@@ -3128,17 +3442,62 @@ function _esc(s){
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// AI 回答富文本渲染：先转义防 XSS，再把 **关键词** 加粗、按小标题/空行/句号拆成条目。
+// 目的是避免「一大段文字没有分割、关键词不突出」，同时不引入 Markdown 依赖。
+function _fmtAssistant(s){
+  var raw = String(s == null ? '' : s);
+  if (!raw.trim()) return '';
+  var t = _esc(raw);
+  // 引用标注 [1][2] 弱化为上标
+  t = t.replace(/\[(\d{1,2})\]/g, '<sup class="ans-ref">$1</sup>');
+  var out = [];
+  var buf = '';
+  function flush(){
+    if (!buf.trim()){ buf = ''; return; }
+    buf.split(/\n+/).forEach(function(p){ if (p.trim()) out.push(p.trim()); });
+    buf = '';
+  }
+  // 以 **小标题** 为分块锚点，块内再按换行拆
+  var chunks = t.split(/(\*\*[^*\n]{1,40}\*\*)/);
+  for (var i = 0; i < chunks.length; i++){
+    var c = chunks[i];
+    if (/^\*\*[^*\n]+\*\*$/.test(c)){
+      flush();
+      out.push('<span class="ans-head">' + c.slice(2, -2) + '</span>');
+    } else { buf += c; }
+  }
+  flush();
+  // 兜底：没有任何小标题且是一整段长文时，按句末标点拆成多条
+  if (out.length === 1 && out[0].indexOf('ans-head') < 0 && out[0].length > 120){
+    var sents = out[0].match(/[^。！？]+[。！？]+/g);
+    if (sents && sents.length > 1) out = sents.map(function(x){ return x.trim(); });
+  }
+  return out.map(function(p){
+    var isHead = p.indexOf('ans-head') === 0;
+    return isHead
+      ? '<div class="ans-head">' + p.replace(/^<span class="ans-head">|<\/span>$/g, '') + '</div>'
+      : '<div class="ans-p">' + p + '</div>';
+  }).join('');
+}
+
 // 在对话流里渲染一套后端返回的真实方案（含评分按钮，outfit_id 直传）
 function renderChatOutfitReal(plan){
   const sc = document.getElementById('chat-scroll'); if (!sc) return;
   const items = (plan.items || []).map(function(it){
     const g = (typeof _GARM_BY_ID === 'object' && _GARM_BY_ID[it.item_id]) || {};
-    const hex = (typeof COLOR_MAP === 'object' && COLOR_MAP[g.color]) || '#999';
-    return '<div class="gitem"><div class="thumb" style="background:' + hex + ';width:44px;height:44px"><div class="fab" style="background-image:radial-gradient(rgba(0,0,0,.3) 1px,transparent 1px)"></div></div><div class="cat">' + _esc(it.name || it.n || '') + '</div></div>';
+    // 颜色/图片优先取方案快照，再按 item_id 反查衣橱；后端 _to_response 已随 item 带出 image_url
+    const color = it.color || g.color || '';
+    const hex = (typeof COLOR_MAP === 'object' && COLOR_MAP[color]) || '#999';
+    const imgUrl = it.image_url || g.image_url || '';
+    const name = it.name || it.n || '';
+    return '<div class="gitem"><div class="thumb" style="background:' + hex + ';width:44px;height:44px">'
+      + _outfitThumb(imgUrl, name) + '</div><div class="cat">' + _esc(name) + '</div></div>';
   }).join('');
   const reason = (plan.reason && plan.reason.summary) || plan.reason || '';
   const points = (plan.reason && plan.reason.points) || [];
-  const pts = points.length ? '<div style="font-size:12px;color:var(--ink-3);margin-top:6px">' + points.map(_esc).join('；') + '</div>' : '';
+  // points 是 [{type,text,rule_id}] 对象数组，必须取 .text；直接 String 化会渲染成 [object Object]
+  const ptTexts = points.map(function(p){ return (p && p.text) ? p.text : (typeof p === 'string' ? p : ''); }).filter(Boolean);
+  const pts = ptTexts.length ? '<div style="font-size:12px;color:var(--ink-3);margin-top:6px">' + ptTexts.map(_esc).join('；') + '</div>' : '';
   const oid = plan.outfit_id || '';
   const html = '<div class="chat-outfit"><div class="chat-outfit-card">'
     + '<div style="font-family:var(--serif);font-weight:600;margin-bottom:8px">AI 搭配方案</div>'
@@ -3326,7 +3685,7 @@ function _renderFeedbackEffects(container, items){
   });
 }
 
-async function loadFeedbackEffects(target){
+async function loadFeedbackEffects(target, includeUndone){
   const container = target || document.getElementById('preference-effects-list');
   if (!container) return;
   const uid = W_USER_ID || localStorage.getItem('wardrobe_uid');
@@ -3334,7 +3693,8 @@ async function loadFeedbackEffects(target){
   container.innerHTML = '<div class="state-loading" style="padding:22px 12px">加载中…</div>';
   try {
     const r = await _api('/api/v1/feedback/effects?user_id='
-      + encodeURIComponent(uid) + '&limit=30');
+      + encodeURIComponent(uid) + '&limit=30'
+      + '&include_undone=' + (includeUndone === false ? 'false' : 'true'));
     _renderFeedbackEffects(container, (r.data && r.data.items) || []);
   } catch (e) {
     container.innerHTML = '<div class="hint">加载失败：' + _esc(e.message || '网络错误') + '</div>';
@@ -3369,17 +3729,83 @@ let _chatStreamController = null;
 function _looksLikeKnowledgeQuestion(text){
   const t = String(text || '').trim();
   if (!t) return false;
+  // 纯标点/无实义短句（如单个「？」「？？」「。」）不是知识问题，
+  // 走后端同步 auto 分流的 echo 兜底即可，避免 SSE 让大模型编一大段文字。
+  if (!/[\u4e00-\u9fa5A-Za-z0-9]/.test(t)) return false;
   // 「今天/现在/出门穿什么、配什么、搭什么」是想要具体方案，交给后端出搭配卡片，
   // 不能被「什么」误判成知识问答（知识问答走流式，只给文字不给卡片）。
   if (/穿什么|穿啥|穿哪|配什么|配啥|搭什么|搭啥|怎么穿|怎么搭|配饰可以搭|配饰怎么搭|给我搭|帮我搭|来一套|搭一套|推荐|换一批|配一套|换成|重新生成/.test(t)) return false;
+  // 时尚资讯（流行/趋势/热门色）走后端 trend 分支调大模型，不走本地知识库流式问答
+  if (/流行|趋势|时尚|热门|流行色|今年|这季|本季|时装周|潮流/.test(t)) return false;
+  // 天气询问（第五项能力）走后端 weather 分支，用真实天气数据回答，不检索知识库
+  if (/天气|气温|温度|多少度|几度|冷不冷|热不热|冷吗|热吗|下雨|预报|晴天|阴天|降温|刮风/.test(t)) return false;
   // 想要一段解释/原理的知识问题才走流式问答
   if (/为什么|有哪些种类|有哪些类型|什么种类|三色原则|是什么|什么意思|能一起穿|能不能一起|可以一起穿|注意|保养|清洗|收纳|护理|技巧|颜色搭配|显高|显瘦/.test(t)) return true;
   return /[?？]\s*$/.test(t) && !/穿什么|穿啥|搭|推荐|配一套|换成|重新生成/.test(t);
 }
 
+/* 时尚资讯双栏：左栏=采集的资讯灵感图（Vogue/ELLE），右栏=衣橱里真实可穿的单品。
+   全部动态创建节点，不新增静态 id，前端契约基线不受影响。 */
+function _renderTrendImages(images, bubble){
+  if (!images) return;
+  const inspo = images.inspo || [], wardrobe = images.wardrobe || [];
+  if (!inspo.length && !wardrobe.length) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'trend-images';
+  wrap.style.cssText = 'margin-top:12px;padding-top:10px;border-top:1px solid var(--line,#e2ddd4)';
+  const title = document.createElement('div');
+  title.style.cssText = 'font-size:12px;color:var(--ink-3,#8b8579);margin-bottom:8px';
+  title.textContent = '配图参考 · 左为时尚资讯，右为你的衣橱单品';
+  wrap.appendChild(title);
+
+  function column(label, list, kind){
+    if (!list.length) return null;
+    const col = document.createElement('div');
+    col.style.cssText = 'flex:1;min-width:0';
+    const h = document.createElement('div');
+    h.style.cssText = 'font-size:11px;color:var(--ink-3,#8b8579);margin-bottom:6px';
+    h.textContent = label;
+    col.appendChild(h);
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap';
+    list.forEach(function(item){
+      const card = document.createElement('div');
+      card.style.cssText = 'width:calc(50% - 3px);cursor:pointer';
+      const img = document.createElement('img');
+      img.src = item.image || '';
+      img.alt = item.title || item.name || '';
+      img.loading = 'lazy';
+      img.style.cssText = 'width:100%;height:96px;object-fit:cover;border-radius:8px;display:block;background:var(--soft,#f2efe9)';
+      img.onerror = function(){ this.style.opacity = '0.25'; };
+      const cap = document.createElement('div');
+      cap.style.cssText = 'font-size:10px;color:var(--ink-3,#8b8579);margin-top:3px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+      cap.textContent = kind === 'inspo'
+        ? ((item.match ? '' : '近期 · ') + (item.source || '资讯') + ' · ' + (item.title || '').slice(0, 26))
+        : ((item.color || '') + ' ' + (item.name || '').slice(0, 20));
+      card.appendChild(img); card.appendChild(cap);
+      if (kind === 'inspo' && item.link){
+        card.onclick = function(){ window.open(item.link, '_blank', 'noopener'); };
+      }
+      row.appendChild(card);
+    });
+    col.appendChild(row);
+    return col;
+  }
+
+  const cols = document.createElement('div');
+  cols.style.cssText = 'display:flex;gap:14px;align-items:flex-start';
+  const a = column('时尚资讯灵感', inspo, 'inspo');
+  const b = column('你的衣橱同款方向', wardrobe, 'wardrobe');
+  if (a) cols.appendChild(a);
+  if (b) cols.appendChild(b);
+  wrap.appendChild(cols);
+  bubble.appendChild(wrap);
+}
+
 function _renderAgentChatData(d, bubble){
   _renderQuotaBadge(d.remaining_count);
-  bubble.innerHTML = _esc(d.content || '');
+  bubble.innerHTML = _fmtAssistant(d.content || '');
+  if (d.action === 'trend') _renderTrendImages(d.images, bubble);
   if (d.mode === 'quota_denied'){
     const b = document.createElement('button');
     b.className = 'btn btn-ghost btn-sm';
@@ -3469,7 +3895,7 @@ async function _streamKnowledgeAnswer(sid, text, bubble){
   bubble.appendChild(status); bubble.appendChild(stop); bubble.appendChild(refs);
 
   function paint(){
-    content.textContent = accumulated;
+    content.innerHTML = _fmtAssistant(accumulated);
     cursor.style.display = finished || stopped ? 'none' : 'inline';
     const sc = document.getElementById('chat-scroll');
     if (sc) sc.scrollTop = sc.scrollHeight;
@@ -3488,8 +3914,11 @@ async function _streamKnowledgeAnswer(sid, text, bubble){
     if (!evt || !evt.type) return;
     if (evt.type === 'meta'){
       meta = evt; receivedOutput = true;
-      sourceTag.style.display = 'block';
-      if (meta.answer_source === 'llm' && !meta.degraded){
+      // 人设/拒答是后端预设文案，没有检索知识库，不显示来源标记
+      sourceTag.style.display = meta.preset ? 'none' : 'block';
+      if (meta.preset){
+        sourceTag.textContent = '';
+      } else if (meta.answer_source === 'llm' && !meta.degraded){
         sourceTag.textContent = '模型生成 · 基于知识库检索';
       } else if (meta.answer_source === 'passages'){
         sourceTag.textContent = '知识库原文摘录（非模型生成）'
@@ -3576,7 +4005,7 @@ async function _streamKnowledgeAnswer(sid, text, bubble){
       status.textContent = '该输入不属于知识问答，正在切换普通对话…';
       await _requestSyncChat(sid, text, bubble);
     } else {
-      content.textContent = accumulated;
+      content.innerHTML = _fmtAssistant(accumulated);
       status.textContent = '流式回复中断：' + (e.message || '网络错误')
         + (accumulated ? '；以上仅为已收到的不完整内容' : '；请重新发送');
       cursor.style.display = 'none'; stop.style.display = 'none';
@@ -3675,25 +4104,48 @@ async function _boot(){
 function _hookRefresh(){
   document.querySelectorAll('button, .btn, [onclick]').forEach(function(el){
     const t = (el.textContent || '').trim();
-    if (t === '刷新推荐' || t === '换一批'){
-      el.addEventListener('click', async function(ev){
-        ev.preventDefault(); ev.stopPropagation();
-        try {
-          if (!W_SESSION_ID) return;
-          const m = await _api('/api/v1/chat/' + W_SESSION_ID + '/message', _json({ action:'reject', payload:{} }));
-          const outs = (m.data && m.data.outfits) || [];
-          if (outs.length){
-            outfits = outs.map(_mapOutfit);
-            outfitIndex = 0;
-            W_OUTFIT_IDS = outs.map(function(o){ return o.outfit_id; });
-          }
-          if (typeof renderOutfits === 'function') renderOutfits();
-          if (typeof toast === 'function') toast('后端已返回新方案 ' + outs.length + ' 套');
-        } catch (e) {
-          if (typeof toast === 'function') toast('刷新失败：' + e.message);
+    if (t !== '刷新推荐' && t !== '换一批') return;
+    const isRefresh = (t === '刷新推荐');
+    el.addEventListener('click', async function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      try {
+        if (!W_SESSION_ID){
+          if (typeof toast === 'function') toast('请先开始一个对话会话');
+          return;
         }
-      }, true);
-    }
+        let payload = {};
+        if (isRefresh){
+          // 刷新推荐：重新拉实时天气，按原会话条件重算；不排除任何核心搭配。
+          // 取不到天气就沿用会话已有条件，不阻塞重算。
+          try {
+            const city = (W_WEATHER && W_WEATHER.city) || window.W_CITY || '';
+            const w = city ? await _loadWeather(city) : null;
+            if (w && w.temp != null) payload.weather = {
+              city: w.city || city,
+              temp: w.temp,
+              rain: w.rain || '未知',
+              rain_probability: w.rain_probability,
+              source: w.source || 'open-meteo'
+            };
+          } catch (e) {}
+        }
+        // 换一批 = reject（换掉上批核心）；刷新推荐 = recommend（原条件重算）
+        const m = await _api('/api/v1/chat/' + W_SESSION_ID + '/message',
+          _json({ action: isRefresh ? 'recommend' : 'reject', payload: payload }));
+        const outs = (m.data && m.data.outfits) || [];
+        if (outs.length){
+          outfits = outs.map(_mapOutfit);
+          outfitIndex = 0;
+          W_OUTFIT_IDS = outs.map(function(o){ return o.outfit_id; });
+        }
+        if (typeof renderOutfits === 'function') renderOutfits();
+        if (typeof toast === 'function') toast(isRefresh
+          ? ('已按最新天气重新生成 ' + outs.length + ' 套方案')
+          : ('已换一批方案 ' + outs.length + ' 套'));
+      } catch (e) {
+        if (typeof toast === 'function') toast('操作失败：' + e.message);
+      }
+    }, true);
   });
 }
 

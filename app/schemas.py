@@ -192,6 +192,13 @@ class ChatMessagePayload(BaseModel):
     payload: dict[str, Any] = Field(default_factory=dict)
 
 
+class SessionBatchDelete(BaseModel):
+    """批量删除历史对话：指定 session_ids，或 clear_all=true 清空当前用户全部。"""
+    user_id: str
+    session_ids: list[str] = Field(default_factory=list)
+    clear_all: bool = False
+
+
 class ChatMessageResponse(BaseModel):
     message_id: str
     role: str

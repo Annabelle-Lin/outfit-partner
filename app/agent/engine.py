@@ -148,6 +148,28 @@ class RecommendContext:
     shown_outfit_ids: list | None = None
     body_shape: str | None = None
     long_term_prefs: dict | None = None
+    # 被用户否定过的搭配核心签名（上装+下装/连衣裙的 item_id 组合）。
+    # 「这些都不喜欢」时记录，之后整组排除，换鞋/配饰也一样不再推。
+    rejected_cores: list | None = None
+
+
+# 搭配「核心」= 上装+下装（或连衣裙）的 item_id 组合，用于负反馈整组排除。
+# chat.py 直接 import 本函数，保证记录与过滤用同一套算法。
+# 注意：只用 normalize_category 归一后的 category，不用 sub_category——
+# 历史 response 里的 item 只有 item_id/category/name/image_url，无 sub_category，
+# 两端字段不一致会导致签名对不上、排除失效（2026-11-17 实测踩坑）。
+_CORE_CATS = {"上装", "下装", "连衣裙"}
+
+
+def outfit_core_signature(outfit: dict) -> str:
+    """返回搭配核心签名（排序后的 item_id 拼接）；无核心返回空串。"""
+    ids = []
+    for it in outfit.get("items", []):
+        if normalize_category(it.get("category")) in _CORE_CATS:
+            iid = it.get("item_id")
+            if iid:
+                ids.append(str(iid))
+    return "_".join(sorted(ids))
 
 
 @dataclass
@@ -172,6 +194,13 @@ class RecommendEngine:
         # 3. 排除已展示（用 items 的 id 集合做指纹）
         shown_fingerprints = set(ctx.shown_outfit_ids)
         outfits = [o for o in outfits if o["fingerprint"] not in shown_fingerprints]
+
+        # 3.5 排除被用户否定过的「核心组合」（上装+下装/连衣裙）。
+        # 只排除整套指纹不够：换个鞋/配饰又会出同一套上装+下装，
+        # 用户说「这些都不喜欢」后必须整组换掉。
+        rejected = set(ctx.rejected_cores or [])
+        if rejected:
+            outfits = [o for o in outfits if outfit_core_signature(o) not in rejected]
 
         if not outfits:
             return {"outfits": [], "reason": "没有满足当前约束的搭配，建议放宽条件（如减少排除色、换场合）。"}
@@ -634,9 +663,100 @@ class RecommendEngine:
             return 2.0
         return 1.4
 
+    @staticmethod
+    def _hydrate_items(base_items: list[dict], all_items: list[dict]) -> list[dict]:
+        """把对话历史里的精简 item（只有 item_id/category/name/image_url）补全为
+        引擎输入（warmth_level / season / sub_category 等），避免打分时全用默认值。
+        找不到就保留原字典，不丢单品。
+        """
+        by_id = {it["item_id"]: it for it in all_items}
+        return [by_id.get(it.get("item_id"), it) for it in base_items]
+
+    def augment(self, base_items: list[dict], add_category: str,
+                all_items: list[dict], ctx: RecommendContext) -> dict[str, Any]:
+        """在锁定方案上加一件单品（对话式「加个配饰 / 添件外套」），返回单套。
+
+        与 refine 的区别：refine 是替换，augment 是追加。两者都只动锁定套，
+        不重新出三套方案。
+        """
+        base_items = self._hydrate_items(base_items, all_items)
+        base_ids = {it["item_id"] for it in base_items}
+        target = normalize_category(add_category)
+        cands = [
+            it for it in all_items
+            if normalize_category(it.get("category")) == target
+            and it["item_id"] not in base_ids
+        ]
+        if not cands:
+            return {"outfit": None,
+                    "reason": f"衣橱里没有可添加的「{add_category}」单品，先往衣橱补一件吧。"}
+
+        exclude = set((ctx.constraints or {}).get("exclude_colors", []))
+        if exclude:
+            cands = [c for c in cands if c.get("color") not in exclude] or cands
+
+        temp = ctx.weather_temp
+        deg_before = sum(_item_degrees(it) for it in base_items if _counts_for_warmth(it))
+        target_deg = self._warmth_need(temp) if temp is not None else deg_before
+        base_colors = [it.get("color", "") for it in base_items if it.get("color")]
+
+        def trial_score(cand: dict) -> float:
+            s = 0.0
+            # 新增件若计入保暖，纳入 26℃ 契合度；纯配饰不影响保暖
+            if _counts_for_warmth(cand):
+                new_deg = deg_before + _item_degrees(cand)
+                s -= abs(new_deg - target_deg) * 3.0
+                if new_deg - target_deg > 2.0:
+                    s -= 2.0
+            if cand.get("color") and cand["color"] in base_colors:
+                s += 2.0
+            main = {it.get("color") for it in base_items
+                    if it.get("category") != "配饰" and it.get("color")}
+            ccat = normalize_category(cand.get("category"))
+            if cand.get("color") and ccat != "配饰":
+                main.add(cand["color"])
+            if len(main) <= 3:
+                s += 2.0
+            return s
+
+        cands.sort(key=trial_score, reverse=True)
+        best = cands[0]
+        new_items = sorted(base_items + [best], key=lambda it: _cat_rank(it.get("category")))
+        score = round(max(0.0, min(100.0, 70.0 + trial_score(best))), 1)
+
+        points = [{"type": "augment",
+                   "text": f"在锁定的这套里加入了「{best.get('name')}」（{add_category}），其余单品保持不变。",
+                   "rule_id": "A001"}]
+        if temp is not None:
+            new_deg = sum(_item_degrees(it) for it in new_items if _counts_for_warmth(it))
+            points.append({"type": "weather",
+                           "text": f"气温 {temp}°C，加入后衣物折算约 {new_deg:g}°C。",
+                           "rule_id": "S008"})
+
+        return {
+            "outfit": {
+                "items": new_items,
+                "score": score,
+                "fingerprint": "augment_" + "_".join(sorted(it["item_id"] for it in new_items)),
+                "categories": {normalize_category(it["category"]) for it in new_items},
+                "sub_categories": {it.get("sub_category") for it in new_items},
+                "colors": [it.get("color", "") for it in new_items if it.get("color")],
+                "reason": {"summary": f"在锁定方案上加了「{best.get('name')}」，整体更完整。",
+                           "points": points},
+            },
+            "added_name": best.get("name"),
+            "points": points,
+        }
+
     def refine(self, base_items: list[dict], target_category: str,
-               all_items: list[dict], ctx: RecommendContext) -> dict[str, Any]:
-        """锁定一套方案，仅替换目标品类单品，返回单套修改版。"""
+               all_items: list[dict], ctx: RecommendContext,
+               sub_category: str | None = None) -> dict[str, Any]:
+        """锁定一套方案，仅替换目标品类单品，返回单套修改版。
+
+        sub_category：用户点名了具体单品（「换成裙子」）时，优先在同一子品类里找替代；
+        衣橱里没有该子品类才回退到整个大类，避免换出「名为换裙、实为换裤」。
+        """
+        base_items = self._hydrate_items(base_items, all_items)
         base_ids = {it["item_id"] for it in base_items}
         target_cat = normalize_category(target_category)
         # 候选：同品类、可穿、且不在原方案中
@@ -646,6 +766,11 @@ class RecommendEngine:
         ]
         if not cands:
             return {"outfit": None, "reason": f"衣橱里没有可替换的「{target_category}」，建议先补充衣物。"}
+        # 点名子品类时优先同子类（如「换成裙子」只在半身裙里挑）
+        if sub_category:
+            narrowed = [it for it in cands if it.get("sub_category") == sub_category]
+            if narrowed:
+                cands = narrowed
 
         # 26℃ 穿衣法：换装后按「当前气温 + 上身折算度数」贴近 26℃ 打分。
         # 天气未知时退回「保留原方案保暖量」，避免用假温度挑单品。

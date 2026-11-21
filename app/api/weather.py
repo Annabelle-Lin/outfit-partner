@@ -11,8 +11,8 @@ GET /weather?city= 获取指定城市天气
 策略：
 - 常用中国城市走内置坐标表，未知城市走 Open-Meteo Geocoding API；
 - 内存缓存 30 分钟，避免频繁打外部 API；
-- 外部服务失败/超时时降级返回 mock 数据，source 字段标识来源，
-  前端可据此提示「本次未使用实时天气」。
+- 外部服务失败/超时时如实返回 unavailable + 空温度，source 字段标识来源，
+  前端提示「暂时无法获取实时天气」，绝不返回伪造温度误导用户和推荐。
 """
 import time
 
@@ -50,14 +50,6 @@ _CITY_COORDS = {
     "哈尔滨": (45.8038, 126.5349),
     "沈阳": (41.8057, 123.4315),
     "郑州": (34.7466, 113.6254),
-}
-
-# mock 兜底数据：外部服务失败时降级返回
-_MOCK_WEATHER = {
-    "city": "福州",
-    "temp": 22.0,
-    "rain": "无降雨",
-    "source": "mock",
 }
 
 # 内存缓存：{city: (timestamp, data)}
@@ -266,7 +258,7 @@ def get_weather(city: str = Query(default="福州", description="城市名，如
 
     返回 source 语义：
     - open-meteo      实时数据
-    - mock(fallback)  外部服务失败/超时，返回降级样例
+    - unavailable     外部服务失败/超时，如实返回空温度，不返回伪造数据
     - city_not_found  城市无法识别（拼写错误或不存在的城市），不返回伪造温度
     """
     city = (city or "").strip()
@@ -293,6 +285,11 @@ def get_weather(city: str = Query(default="福州", description="城市名，如
             "message": "未识别该城市，请检查城市名称或换一个城市",
         })
 
-    # 降级：返回 mock，source 标识非实时
-    fallback = _MOCK_WEATHER | {"city": city, "source": "mock(fallback)"}
-    return ok(data=fallback)
+    # 取不到实时天气：如实告知，绝不返回写死的假温度（假数据会污染推荐）
+    return ok(data={
+        "city": city,
+        "temp": None,
+        "rain": "未知",
+        "source": "unavailable",
+        "message": "暂时无法获取实时天气，请稍后再试",
+    })

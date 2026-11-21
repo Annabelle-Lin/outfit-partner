@@ -18,6 +18,16 @@ DELETE /purchase/{evaluation_id} 删除一条评估记录
 5. 购买建议按 K-PREF-03 阈值：<0.5 且 组合数≥3 才建议购买。
 6. matchable_count 语义改为「含目标单品的合法搭配数」，
    另给 closet_only_count 作为衣橱原有搭配对照。
+7.（2026-11-19 测评）季节默认气温补「春秋」键：前端季节下拉与
+   clothing_meta.json 枚举都有「春秋」，缺键导致选春秋被静默按
+   「四季 20℃」错标来源。
+8.（2026-11-19 测评）季节留空时按拟购单品暖度推断季节，不再一律
+   假设「四季 20℃」——否则羽绒服不填季节就被误判「20℃ 不合常理」。
+9.（2026-11-19 测评）季节冲突补「春秋款 × 夏季」分支，旧实现静默放行。
+10.（2026-11-19 测评）重复度按 K-ALG-05「关键属性高度重合」原意，
+   对衣橱单品做「拟购单品已知维度」投影后算 Jaccard；并做子品类别名
+   归一与暖度分档，修复「同名同色 T 恤只算 0.2 可新增」的失效判定
+   （详见 garment_profile.duplicate_analysis）。
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
@@ -41,8 +51,11 @@ router = APIRouter()
 
 TARGET_ID = "purchase_target"
 
-# 季节默认气温：仅在用户既没给温度、又拿不到实时天气时使用，并如实标注
-SEASON_DEFAULT_TEMP = {"春季": 18.0, "夏季": 28.0, "秋季": 18.0, "冬季": 5.0, "四季": 20.0}
+# 季节默认气温：仅在用户既没给温度、又拿不到实时天气时使用，并如实标注。
+# 2026-11-19 实测修正：季节枚举一等公民包含「春秋」（clothing_meta.json、
+# 前端季节下拉都是「四季/春秋/夏/冬」），缺该键时用户选春秋会静默落到
+# 「四季 20℃」并被错标来源。
+SEASON_DEFAULT_TEMP = {"春季": 18.0, "夏季": 28.0, "秋季": 18.0, "春秋": 18.0, "冬季": 5.0, "四季": 20.0}
 
 # 引擎硬过滤里的品类禁配清单，用于目标单品自身校验（与 engine._hard_filter 保持一致）
 FORMAL_FORBID = {"运动裤", "拖鞋", "背心", "短裤", "卫衣"}
@@ -127,15 +140,24 @@ def _weather_from_city(city: str) -> tuple[float | None, str | None]:
     return temp, rain
 
 
-def _resolve_temperature(req: schemas.PurchaseEvaluateRequest) -> tuple[float | None, str]:
-    """返回 (气温, 来源)。来源用于前端如实标注，不能把估算值说成实时天气。"""
+def _resolve_temperature(req: schemas.PurchaseEvaluateRequest, target: dict | None = None) -> tuple[float | None, str]:
+    """返回 (气温, 来源)。来源用于前端如实标注，不能把估算值说成实时天气。
+
+    季节留空时不假设「四季 20℃」（2026-11-19 实测缺陷：羽绒服不填
+    季节/气温/城市时，被按 20℃ 评估并误判「极厚单品在 20℃ 不合常理」，
+    结论南辕北辙）。改为按拟购单品的暖度推断季节再取默认值，
+    来源仍如实标注 season_default。
+    """
     if isinstance(req.temperature, (int, float)):
         return float(req.temperature), "user"
     if (req.city or "").strip():
         temp, _ = _weather_from_city(req.city)
         if temp is not None:
             return temp, f"weather:{req.city.strip()}"
-    season = normalize_season(req.season)
+    raw_season = (req.season or "").strip()
+    season = normalize_season(raw_season) if raw_season else ""
+    if not season and target is not None:
+        season = infer_season(int(target.get("warmth_level") or 3))
     if season in SEASON_DEFAULT_TEMP:
         return SEASON_DEFAULT_TEMP[season], f"season_default:{season}"
     return SEASON_DEFAULT_TEMP["四季"], "season_default:四季"
@@ -224,6 +246,9 @@ def _season_conflict(target_season: str, season: str) -> str:
         return ""
     if season == "夏季" and target_season == "冬季":
         return "冬季单品不适合夏季穿着"
+    # 2026-11-19 实测补充：春秋款在夏季场景明显偏厚，旧实现对此静默放行
+    if season == "夏季" and target_season == "春秋":
+        return "春秋款在夏季偏厚"
     if season == "冬季" and target_season == "夏季":
         return "夏季单品不适合冬季穿着"
     if season == "冬季" and target_season == "春秋":
@@ -342,8 +367,11 @@ def evaluate(req: schemas.PurchaseEvaluateRequest, request: Request, db: Session
     rows = db.query(ClothingItem).filter(ClothingItem.user_id == req.user_id).all()
     closet = [_closet_item(row) for row in rows]
 
-    temp, temp_source = _resolve_temperature(req)
-    season = normalize_season(req.season) or infer_season(int(target["warmth_level"]))
+    # 季节留空时按拟购单品暖度推断（旧实现的 `or infer_season` 分支因
+    # normalize_season("") 恒返回「四季」而是死代码，从未生效）
+    temp, temp_source = _resolve_temperature(req, target)
+    raw_season = (req.season or "").strip()
+    season = normalize_season(raw_season) if raw_season else infer_season(int(target["warmth_level"]))
     occasion = (target.get("occasion") or ["通勤"])[0] or "通勤"
 
     engine = request.app.state.engine
@@ -443,6 +471,7 @@ def evaluate(req: schemas.PurchaseEvaluateRequest, request: Request, db: Session
         "nearest_item": nearest or None,
         "shared_attributes": duplicate["shared_attributes"][:6],
         "same_category_count": duplicate["same_category_count"],
+        "comparable_dims": duplicate.get("comparable_dims", []),
         "suggestion_level": suggestion_level,
         "suggestion": suggestion,
         "temperature": temp,
