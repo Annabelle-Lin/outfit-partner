@@ -194,8 +194,59 @@ def effective_season(item: dict) -> str:
 
 # ------------------------------------------------------------ 重复度 Jaccard
 
-def attribute_set(item: dict) -> set[str]:
-    """把单品转成属性集合（K-ALG-05 的「属性集合」）。"""
+# 子品类别名表缓存（rules/clothing_meta.json 的 sub_category_alias，
+# 如 短袖→T恤、阔腿裤→长裤）。拟购单品与衣橱单品的录入路径不同，
+# 不归一时同一件衣物会出现「短袖」vs「T恤」的假差异。
+_SUB_ALIAS_CACHE: dict[str, str] | None = None
+
+
+def _meta_aliases() -> dict[str, str]:
+    global _SUB_ALIAS_CACHE
+    if _SUB_ALIAS_CACHE is None:
+        try:
+            import json
+
+            from app.config import RULES_DIR
+            with open(RULES_DIR / "clothing_meta.json", encoding="utf-8") as f:
+                _SUB_ALIAS_CACHE = dict(json.load(f).get("sub_category_alias") or {})
+        except Exception:
+            _SUB_ALIAS_CACHE = {}
+    return _SUB_ALIAS_CACHE
+
+
+def _norm_sub(value) -> str:
+    """子品类别名归一：短袖/T恤、阔腿裤/长裤 视为同一属性值。"""
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    return _meta_aliases().get(text, text)
+
+
+def warmth_bucket(level) -> str:
+    """暖度 1-5 分三档：薄(≤2) / 中(3-4) / 厚(≥5)。
+
+    重复度判定用分档而非原值：暖度经常一边是推断、一边是录入，
+    同一件衣物出现 1 档之差属于噪声（如 T 恤推断 1、录入 2），
+    不构成「关键属性差异」。
+    """
+    try:
+        lv = int(level)
+    except (TypeError, ValueError):
+        lv = 3
+    if lv <= 2:
+        return "薄"
+    if lv <= 4:
+        return "中"
+    return "厚"
+
+
+def attribute_set(item: dict, dims: set[str] | None = None) -> set[str]:
+    """把单品转成属性集合（K-ALG-05 的「属性集合」）。
+
+    - 子品类走 clothing_meta 别名归一；
+    - 暖度按 薄/中/厚 分档（见 warmth_bucket）；
+    - ``dims`` 非空时只保留指定维度，用于重复度的「已知维度投影」比较。
+    """
     attrs: set[str] = set()
 
     def add(prefix: str, value) -> None:
@@ -206,13 +257,15 @@ def attribute_set(item: dict) -> set[str]:
             attrs.add(f"{prefix}:{text}")
 
     add("category", normalize_category(item.get("category")))
-    add("sub_category", item.get("sub_category"))
+    add("sub_category", _norm_sub(item.get("sub_category")))
     add("color", item.get("color"))
     add("fabric", item.get("fabric"))
     add("style", item.get("style"))
     add("fit_silhouette", item.get("fit_silhouette"))
     add("fit_snug", item.get("fit_snug"))
-    attrs.add(f"warmth:{effective_warmth(item)}")
+    attrs.add(f"warmth:{warmth_bucket(effective_warmth(item))}")
+    if dims is not None:
+        attrs = {a for a in attrs if a.split(":", 1)[0] in dims}
     return attrs
 
 
@@ -229,9 +282,21 @@ def duplicate_analysis(target: dict, closet: list[dict]) -> dict:
     """按 K-ALG-05 计算重复度，并点名最相似的单品。
 
     只与「同类单品」比较（规范原文：衣橱中同类单品属性集合）。
+
+    2026-11-19 购前评估实测缺陷修正：
+    购前评估表单只保证 品类/名称/颜色/季节，拟购单品的属性集合天然
+    比衣橱单品（含面料、版型、风格等 8 维）小。直接对两个全集做
+    Jaccard 时，分母被单品独有属性撑大——实测「同名同色、与衣橱里
+    完全相同的白色基础T恤」只算 0.2，被判「可新增」，重复度形同虚设。
+
+    按 K-ALG-05「在关键属性上高度重合」的原意改为**按拟购单品的已知
+    维度投影比较**：用户没填的维度既不能证明相似、也不能证明差异，
+    不计入分母。Jaccard 公式不变，只是把衣橱单品投影到相同维度上。
     """
     target_cat = normalize_category(target.get("category"))
     target_attrs = attribute_set(target)
+    # 可比维度 = 拟购单品有值的维度（品类、子品类、暖度必有，其余看用户填写）
+    target_dims = {a.split(":", 1)[0] for a in target_attrs}
 
     best_score = 0.0
     best_item: dict | None = None
@@ -244,7 +309,7 @@ def duplicate_analysis(target: dict, closet: list[dict]) -> dict:
         if normalize_category(item.get("category")) != target_cat:
             continue
         same_category_count += 1
-        item_attrs = attribute_set(item)
+        item_attrs = attribute_set(item, dims=target_dims)
         score = jaccard(target_attrs, item_attrs)
         if score > best_score:
             best_score = score
@@ -262,6 +327,7 @@ def duplicate_analysis(target: dict, closet: list[dict]) -> dict:
         "score": round(best_score, 2),
         "level": level,
         "same_category_count": same_category_count,
+        "comparable_dims": sorted(target_dims),
         "nearest_item": (
             {
                 "item_id": best_item.get("item_id"),

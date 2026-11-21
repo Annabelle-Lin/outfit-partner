@@ -195,8 +195,8 @@ async def analyze_image(file: UploadFile = File(...)):
     degraded = True
     reason = ""
 
-    # 第 1 段：视觉模型
-    if config.is_llm_enabled():
+    # 第 1 段：视觉模型（走智谱 GLM-4V，与文本 LLM 供应商无关）
+    if config.is_vision_enabled():
         try:
             got = llm.analyze_image(base64.b64encode(raw).decode(), mime)
         except Exception:

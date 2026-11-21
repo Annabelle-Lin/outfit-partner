@@ -8,20 +8,50 @@ POST /chat/{session_id}/end       结束会话
 """
 import json
 import re
+from functools import lru_cache
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app import config, schemas, security, utils
-from app.agent.engine import RecommendContext
+from app.agent.engine import RecommendContext, outfit_core_signature
 from app.api.weather import _fetch_weather, _fetch_forecast, forecast_summary, _CITY_COORDS, _geocode_city
 from app.agent.kb import KnowledgeIndex
-from app.agent.llm import ask, classify_intent, reply as llm_reply
+from app.agent.llm import (ask, classify_intent, check_domain, classify, weather_reply,
+                           reply as llm_reply, trend as llm_trend)
 from app.api import ok
-from app.db import ChatMessage, ChatSession, ClothingItem, OutfitRecord, User, get_db
+from app.db import (ChatMessage, ChatSession, ClothingItem, FashionInspo,
+                    OutfitRecord, User, get_db)
 
 router = APIRouter()
+
+
+def _message_outfits(m: ChatMessage) -> list:
+    """还原消息里的完整方案快照，供历史会话回放。
+
+    chat_messages.outfits 只存 outfit_id 字符串数组；完整对象在
+    payload["outfits"]（以及 outfit_records 快照表）。前端渲染卡片需要
+    items / reason / outfit_id，直接把 id 数组传过去只能渲染出空壳。
+    """
+    ids = m.outfits or []
+    if not ids:
+        return []
+    if isinstance(ids[0], dict):  # 兼容历史上直接存对象的数据
+        return ids
+    full: list = []
+    try:
+        p = m.payload or {}
+        if isinstance(p, dict):
+            cand = p.get("outfits")
+            if isinstance(cand, list) and cand and isinstance(cand[0], dict):
+                full = cand
+    except Exception:
+        pass
+    if not full:
+        return [{"outfit_id": str(x)} for x in ids]
+    by_id = {str(o.get("outfit_id")): o for o in full if isinstance(o, dict)}
+    return [by_id.get(str(x), {"outfit_id": str(x)}) for x in ids]
 
 
 def _session_to_response(session: ChatSession) -> dict:
@@ -48,7 +78,8 @@ def _session_to_response(session: ChatSession) -> dict:
                 "role": m.role,
                 "action": m.action,
                 "content": m.content,
-                "outfits": m.outfits,
+                "outfits": _message_outfits(m),
+                "images": (m.payload or {}).get("images", []) if m.action == "trend" else [],
                 "timestamp": m.created_at.isoformat(),
             }
             for m in session.messages
@@ -132,6 +163,33 @@ def _clarify_needs(text: str, session: ChatSession) -> list[str]:
 
 def _should_clarify(text: str, session: ChatSession) -> bool:
     return bool(_clarify_needs(text, session))
+
+
+def _match_occasion(text: str) -> str | None:
+    """从用户回答里抽出场合词（澄清选项即来自 _OCCASION_WORDS）。
+
+    用户在澄清卡点「聚会」「休闲」后，前端把选项文字当作普通消息发来，
+    必须把场合写回 session，否则下一轮又判缺场合、无限反问。
+    """
+    t = (text or "").strip()
+    return next((w for w in _OCCASION_WORDS if w in t), None)
+
+
+def _match_temperature(text: str) -> float | None:
+    """从「18-25℃」「22度」这类回答里抽出可用于推荐的体感温度。"""
+    import re
+    t = (text or "").strip()
+    # 区间优先，如 18-25℃ 取中值；否则单值正则会先抢走末尾的 25℃
+    m = re.search(r"(\d+)\s*[-~到至]\s*(\d+)\s*(?:℃|°C|度)", t)
+    if m:
+        return (int(m.group(1)) + int(m.group(2))) / 2
+    m = re.search(r"(-?\d+(?:\.\d+)?)\s*(?:℃|°C|度)", t)
+    if m:
+        try:
+            return float(m.group(1))
+        except ValueError:
+            return None
+    return None
 
 
 def _clarify_response(session: ChatSession, needs: list[str] | None = None) -> dict:
@@ -414,7 +472,12 @@ def _run_compare(db: Session, request: Request, session: ChatSession, user: User
 
 
 def _quota_cost(action: str) -> int:
-    """动作 -> 额度成本（1.3 语义显式化，统一读配置）。"""
+    """动作 -> 额度成本（1.3 语义显式化，统一读配置）。
+
+    额度总开关关闭时恒为 0：同一会话无限对话，拦截与扣减自然失效。
+    """
+    if not config.CHAT_QUOTA_ENABLED:
+        return 0
     if action == "recommend":
         return config.CHAT_COST_RECOMMEND
     if action == "reject":
@@ -429,7 +492,345 @@ _KNOWLEDGE_HEADS = (
     "是不是", "是否", "要不要", "该不该", "适不适合", "有什么区别", "区别",
     "原则", "技巧", "讲究", "注意什么",
 )
-_RECOMMEND_WORDS = ("推荐", "搭一套", "搭配一下", "帮我搭", "来一套", "换一批", "配一套")
+# 要「可照着穿的方案」的强信号。这类问法必须判 recommend 出卡片，
+# 不能被问号/「什么」截成知识问答（知识问答只有文字+文献，没有卡片）。
+# 含前端 _looksLikeKnowledgeQuestion 的全部推荐词，两边口径一致。
+_RECOMMEND_WORDS = (
+    "推荐", "搭一套", "搭配一下", "帮我搭", "来一套", "换一批", "配一套",
+    "穿什么", "穿啥", "穿哪", "配什么", "配啥", "搭什么", "搭啥",
+    "怎么穿", "怎么搭", "配饰可以搭", "配饰怎么搭", "穿点什么", "穿点啥",
+    "穿的好看", "穿得好看", "穿的合适", "穿得合适",
+)
+# 「推荐」单独出现时可能指向任意领域（推荐电影/餐厅/股票），
+# 必须有穿搭语境才当强推荐信号，否则交给白名单门禁判域外。
+_NON_CLOTHING_RECOMMEND = (
+    "电影", "电视剧", "小说", "书", "餐厅", "饭店", "歌", "音乐", "游戏",
+    "股票", "基金", "景点", "旅游地", "城市", "专业", "学校", "工作", "软件",
+)
+
+
+def _has_recommend_signal(text: str) -> bool:
+    """是否是要穿搭方案的信号（排除「推荐电影」这类域外语境）。"""
+    t = (text or "").strip()
+    if not t:
+        return False
+    if any(w in t for w in _NON_CLOTHING_RECOMMEND):
+        return False
+    return any(w in t for w in _RECOMMEND_WORDS)
+
+
+# 关键区分：裸「推荐/搭配一下/喜欢」是泛化动作词，单独出现不足以证明在域——
+# 「推荐一个旅行目的地」「搭配今天的菜谱」「喜欢穿铠甲」都会误命中（2026-11-18 实测）。
+# 只有带明确衣物实体/穿搭方案短语/套号，才算「强在域信号」，可由本地安全锁定、不必等 LLM；
+# 其余一律交给 LLM 做开放集领域判定（实测 check_domain/classify_intent 对这些域外句全判 out）。
+_STRONG_RECOMMEND_PHRASES = (
+    "穿什么", "穿啥", "穿哪", "配什么", "配啥", "搭什么", "搭啥",
+    "怎么穿", "怎么搭", "来一套", "换一批", "配一套", "搭一套",
+    "帮我搭一套", "帮我搭一套衣服",  # 裸「帮我搭」是泛化词（帮我搭配菜谱/搭桥），必须带「一套」
+    "穿点什么", "穿点啥", "穿的好看", "穿得好看", "穿的合适", "穿得合适",
+    "配饰可以搭", "配饰怎么搭",
+)
+_STRONG_DOMAIN_ENTITIES = (
+    "衣服", "服装", "上衣", "下装", "外套", "裤子", "裙子", "鞋子", "配饰", "围巾",
+    "衬衫", "牛仔裤", "T恤", "t恤", "风衣", "毛衣", "针织衫", "卫衣", "连衣裙", "西装",
+    "夹克", "羽绒服", "运动鞋", "靴子", "衣橱", "衣柜", "穿搭",
+)
+
+
+def _has_strong_domain_signal(text: str) -> bool:
+    """本地可安全锁定为「穿搭在域」的强信号：衣物实体 / 方案短语 / 套号。
+
+    与 _has_recommend_signal 的区别：后者含「推荐」「搭配一下」等泛化词，
+    会把「推荐旅行目的地」「搭配菜谱」误判在域，不能作为免 LLM 短路的依据。
+    """
+    t = (text or "").strip()
+    if not t:
+        return False
+    if any(w in t for w in _STRONG_RECOMMEND_PHRASES):
+        return True
+    if any(w in t for w in _STRONG_DOMAIN_ENTITIES):
+        return True
+    if _extract_outfit_index(t) is not None:
+        return True
+    return False
+
+# ---------- 与穿搭无关的问题：委婉拒答 ----------
+# 只列明显属于其他领域的词，避免误伤「吃完饭穿什么」这类仍要出方案的话。
+_OFF_TOPIC_WORDS = (
+    # 美食 / 餐饮
+    "吃什么", "吃啥", "今天吃", "午餐", "晚餐", "早餐", "夜宵", "菜单", "菜谱",
+    "食谱", "美食", "餐厅", "外卖", "做饭", "做菜", "卡路里",
+    # 星座 / 命理
+    "星座", "运势", "塔罗", "算命", "八字", "风水", "周公解梦", "生肖",
+    "白羊座", "金牛座", "双子座", "巨蟹座", "狮子座", "处女座", "天秤座",
+    "天蝎座", "射手座", "摩羯座", "水瓶座", "双鱼座",
+    # 其他典型无关领域
+    "股票", "基金", "炒股", "数学题", "作业", "论文", "考试", "翻译", "写代码",
+    "感冒", "发烧", "吃药", "看病",
+)
+# 即使命中上面的词，只要落点仍是穿搭，就不算无关问题。
+_OFF_TOPIC_FASHION_GOAL = (
+    "穿什么", "穿啥", "配什么", "搭什么", "怎么穿", "怎么搭", "搭配", "衣橱",
+    "穿搭", "衣服", "配饰", "上装", "下装", "外套", "鞋子",
+)
+
+_OFF_TOPIC_REPLY = (
+    "这个问题我就不硬答啦～我是今遂的专属穿搭顾问遂遂子，平时能帮你："
+    "按天气、场合和衣橱里的单品搭出可直接照穿的整套方案，讲清搭配原理和风格思路，"
+    "帮你整理衣橱、给购买前的建议，聊最近的流行色、热门风格和时尚资讯，"
+    "还能告诉你今天或未来几天的天气。换个我擅长的问题，我马上帮你安排～"
+)
+
+
+def _detect_off_topic(text: str) -> bool:
+    """是否是与穿搭/时尚完全无关的问题（美食、星座、医疗、股票等）。
+
+    反向白名单必须用「强在域信号」——裸「搭配」会豁免「搭配菜谱」这类域外句，
+    只有带衣物实体/方案短语（吃完饭穿什么）才算真落点穿搭。
+    """
+    t = (text or "").strip()
+    if not t:
+        return False
+    if _has_strong_domain_signal(t) or any(w in t for w in _OFF_TOPIC_FASHION_GOAL
+                                           if w not in ("搭配", "怎么搭")):
+        return False
+    return any(w in t for w in _OFF_TOPIC_WORDS)
+
+
+# ---------- 人设问答：身份与能力介绍 ----------
+_PERSONA_INTRO = (
+    "我是你的专属穿搭顾问，我来自今遂，我有个很可爱的形象哦~我的开发者喜欢叫我遂遂子。"
+    "我平时可以帮你按天气、场合和衣橱里的单品来搭衣服——像今天厦门21.4℃这种不冷不热的天，"
+    "帮你定「松弛感通勤」那套白T+深蓝直筒牛仔裤+卡其风衣，就是我的活儿。"
+    "如果你想了解最近流行的穿搭思路和时尚趋势，我也可以帮你解答。"
+    "我的名字固定就是遂遂子，没有别的称呼；你喊「遂遂子」我就答应。"
+)
+_PERSONA_CAPABILITY = (
+    "我能帮你做的，主要围绕「穿搭」这件事："
+    "① 每日穿搭推荐——结合当天天气、场合和你衣橱里的单品，直接搭出可照着穿的成套方案，"
+    "并说明为什么这么配，像「松弛感通勤」那套白T+深蓝直筒牛仔裤+卡其风衣，就是我的活儿；"
+    "② 时尚资讯与潮流风向——最近流行什么颜色、哪些风格当红（奶油色系、松弛感通勤、老钱风、"
+    "运动休闲混搭）、哪些单品值得关注，我帮你梳理思路，再落到你自己的衣橱上；"
+    "③ 风格解读与搭配原理——三色原则、洋葱式叠穿、显高显瘦这些方法，讲清楚怎么用在你身上；"
+    "④ 衣橱管理与购买前评估——盘点能搭出多少组合、哪些单品重复，想买新衣服时按可搭配度"
+    "给「建议买/不建议买」的结论。简单说：告诉我天气、场合、想要的风格，或者直接问"
+    "「今年流行什么」「这件外套值不值得买」，我就能给出具体到颜色和单品的方案。"
+)
+_PERSONA_TRIGGERS = (
+    (("你叫什么", "叫什么名字", "你的名字", "你是谁", "怎么称呼你", "你叫什么呀"),
+     _PERSONA_INTRO),
+    (("你可以做什么", "你可以做些", "你能做什么", "你能做些", "你能干什么",
+      "你可以干什么", "你能干嘛", "可以做些什么", "能做些什么", "会些什么",
+      "你有什么功能", "你会什么", "你能帮我做什么", "介绍一下你自己", "介绍下你自己"),
+     _PERSONA_CAPABILITY),
+)
+
+
+def _persona_answer(text: str) -> str | None:
+    """身份/能力介绍类问题的标准答案；其他问题返回 None 走正常链路。"""
+    t = (text or "").strip()
+    if not t:
+        return None
+    for words, answer in _PERSONA_TRIGGERS:
+        if any(w in t for w in words):
+            return answer
+    return None
+
+
+# 固定称呼：只允许喊「遂遂子」。其他昵称（小米/小冻/李教授…）一律不认、不记忆。
+_NAME_CALL_REPLY = (
+    "我在呢～遂遂子收到！我是你的专属穿搭顾问，来自今遂。"
+    "想让我帮你搭一套、查今天的天气，还是聊聊最近的流行色和热门风格？直接说就行。"
+)
+
+
+def _detect_name_call(text: str) -> bool:
+    """是否只是呼唤固定名字。允许「遂遂子」「遂遂子你好」「你好遂遂子」「遂遂子在吗」。"""
+    t = (text or "").strip()
+    if not t:
+        return False
+    s = re.sub(r"[\s，,。！!？?~～、：:；;]", "", t)
+    s = re.sub(r"^(你好呀|你好|哈喽|嗨|hi|hello)+", "", s, flags=re.I)
+    s = re.sub(r"(你好呀|你好|在吗|在不在|在么|呀|啊|呢|哦|哈)+$", "", s)
+    return s == "遂遂子"
+
+
+_OTHER_NAME_SAFE = {"你好", "您好", "在吗", "在不在", "嗨", "哈喽", "hi", "hello",
+                    "谢谢", "好的", "收到", "是的", "嗯嗯"}
+
+# 多轮微调短指令：用户在对上一套方案下指令，不是"喊别的助手名字"。
+# "换成裙子" / "不要黑色" / "更休闲" 都只有 3-4 字且不含穿搭关键词，
+# 旧规则会把它们误判成 name-call，短路成 off_topic 直接拒答（Q17/Q18）。
+_TWEAK_SIGNALS = (
+    "换", "改成", "改为", "改掉", "不要", "别要", "别用", "去掉", "删掉", "不想要",
+    "加", "添", "配", "来个", "来件", "来条", "来双", "来套", "来一",
+    "更", "再", "太", "有点", "稍", "一点", "一些", "点儿",
+    "还是", "这", "那",
+)
+
+
+def _detect_other_name_call(text: str) -> bool:
+    """像在喊别的名字（小米/小冻/李教授…）：不承认、不复述，走通用拒答。
+
+    注意：多轮微调常是 3-4 字的短指令（"换成裙子""不要黑色""更休闲"），
+    语义是在改上一套方案，绝不能当成 name-call 拒答。
+    """
+    s = re.sub(r"[\s，,。！!？?~～、：:；;]", "", (text or "").strip())
+    if not s or len(s) > 4 or s in _OTHER_NAME_SAFE:
+        return False
+    if _preset_answer(s):
+        return False
+    if any(w in s for w in ("穿", "搭", "衣", "天气", "流行", "颜色", "风格")):
+        return False
+    if any(w in s for w in _TWEAK_SIGNALS):
+        return False
+    return True
+
+
+def _preset_answer(text: str) -> str | None:
+    """人设问答与固定名字呼唤：都不检索、不调 LLM。"""
+    return _persona_answer(text) or (_NAME_CALL_REPLY if _detect_name_call(text) else None)
+
+
+# ---------- 天气询问（第五项能力）：问天气本身，不是问穿搭 ----------
+_WEATHER_QUERY_WORDS = (
+    "天气", "气温", "温度", "多少度", "几度", "几℃", "多少℃", "度左右",
+    "冷不冷", "热不热", "冷吗", "热吗", "凉不凉", "暖和吗", "冻不冻",
+    "下雨", "下雨吗", "会下雨", "要下雨", "有雨", "无雨", "晴天", "雨天", "阴天",
+    "刮风", "风大", "降温", "回暖", "预报", "紫外线", "空气湿度",
+)
+_WEATHER_FUTURE_WORDS = ("明天", "后天", "未来", "这几天", "这周", "下周", "接下来", "两天", "三天", "一周")
+
+
+def _detect_weather_query(text: str) -> bool:
+    """是否是「问天气本身」。要穿搭方案的（今天穿什么）不算，由 recommend 优先拿走。"""
+    t = (text or "").strip()
+    if not t:
+        return False
+    if _has_recommend_signal(t):
+        return False
+    return any(w in t for w in _WEATHER_QUERY_WORDS)
+
+
+# ---------- 能力白名单门禁：本地明确信号 + LLM 开放集兜底 ----------
+# 本地在域信号用具体穿搭词，不用「怎么/什么/为什么」这类过宽词（否则「吃什么」会被放行）。
+_DOMAIN_KNOWLEDGE_WORDS = (
+    "穿搭", "搭配", "衣服", "服装", "上衣", "下装", "外套", "裤子", "裙子", "鞋子",
+    "配饰", "围巾", "颜色", "深色", "浅色", "亮色", "素色", "色彩", "风格", "款式",
+    "面料", "材质", "体型", "身材", "显瘦", "显高", "三色原则", "洋葱", "叠穿",
+    "保养", "清洗", "收纳", "护理", "衣橱", "衣柜", "值不值得买", "该不该买",
+    "整理衣橱", "买衣服", "买外套", "穿搭思路",
+)
+
+
+def _domain_allows(text: str, use_llm: bool = True) -> bool | None:
+    """问题是否属于助手能力范围（白名单思路）。
+
+    返回 True=明确在域 / False=明确域外 / None=模糊。
+    同步路径复用意图分类的 off_topic 标签（use_llm=False 只跑本地），
+    SSE 路径在模糊时才额外调一次轻量门禁（4 token）。
+    """
+    t = (text or "").strip()
+    if not t:
+        return True
+    # 1) LLM 主裁决（与 _classify_intent 共用同一次调用，靠 _judge 缓存）。
+    #    use_llm=False 仅供离线回归用，跳过 LLM。
+    if use_llm:
+        verdict = _judge(t)
+        if verdict["domain"] == "out":
+            return False
+        if verdict["domain"] == "in":
+            return True
+    # 2) LLM 不可用/被跳过 → 本地保守兜底：只认黑名单与强在域实体，不裸词放行。
+    if _detect_off_topic(t):
+        return False
+    if (_detect_weather_query(t) or _detect_trend(t) or _preset_answer(t)
+            or _has_strong_domain_signal(t)
+            or any(w in t for w in _DOMAIN_KNOWLEDGE_WORDS)):
+        return True
+    return None
+
+
+def _weather_answer_text(query: str, session, user, passed_w=None,
+                         history=None, db=None) -> str:
+    """基于真实天气数据生成天气回答。取不到数据就如实说，绝不编造温度。"""
+    city = ""
+    if isinstance(passed_w, dict):
+        city = (passed_w.get("city") or "").strip()
+    city = city or (getattr(session, "weather_city", "") or "").strip()
+    city = city or (getattr(user, "city", "") or "").strip() or "福州"
+
+    future = any(w in query for w in _WEATHER_FUTURE_WORDS)
+    info: dict = {"城市": city}
+
+    if future:
+        days = 3
+        m = re.search(r"([1-9一二三四五六七两])\s*天", query)
+        if m:
+            days = _ORDINAL.get(m.group(1), days) or days
+        forecast = _fetch_forecast(city, days)
+        summary = forecast_summary(forecast, days) if forecast else None
+        if summary:
+            info.update({
+                "日期区间": f"{summary['start_date']} 至 {summary['end_date']}",
+                "代表温度": f"{summary['temp']}°C",
+                "最低温": f"{summary['temp_min']}°C",
+                "最高温": f"{summary['temp_max']}°C",
+                "天气": summary["rain"],
+                "降雨概率": summary["rain_probability"],
+                "数据来源": summary["source"],
+            })
+        else:
+            info["预报状态"] = "暂时取不到未来天气预报"
+
+    # 当前天气：优先前端传值 > 会话缓存 > 后端实时抓取
+    if not future or not info.get("代表温度"):
+        temp = getattr(session, "weather_temp", None)
+        rain = getattr(session, "weather_rain", None)
+        prob = getattr(session, "weather_rain_prob", None)
+        source = getattr(session, "weather_source", None)
+        if isinstance(passed_w, dict) and passed_w.get("temp") is not None:
+            temp = passed_w.get("temp")
+            rain = passed_w.get("rain") or rain
+            prob = passed_w.get("rain_probability")
+            source = "passed"
+        if temp is None:
+            try:
+                data = _fetch_weather(city)
+                if data and data.get("temp") is not None:
+                    temp = data.get("temp")
+                    rain = data.get("rain") or rain
+                    prob = data.get("rain_probability")
+                    source = data.get("source") or "open-meteo"
+            except Exception:
+                pass
+        if temp is not None:
+            info.update({
+                "当前温度": f"{temp}°C", "天气": rain or "未知",
+                "降雨概率": prob, "数据来源": source or "实时",
+            })
+        else:
+            info["当前状态"] = "暂时取不到实时天气"
+
+    has_data = any(k in info for k in ("当前温度", "代表温度"))
+    content = weather_reply(query, info, history=history) if has_data else None
+    if content:
+        return content
+
+    # 本地兜底模板（LLM 未启用/失败），只用真实数据
+    if not has_data:
+        return (f"我这边暂时没拿到{city}的实时天气，不想瞎编一个温度误导你。"
+                f"你可以告诉我大概多少度、下不下雨，或允许页面取天气，我就能按 26℃ 穿衣法给你建议。")
+    if "代表温度" in info:
+        return (f"{city}{info['日期区间']} 的天气预报：代表温度 {info['代表温度']}，"
+                f"最低 {info['最低温']}、最高 {info['最高温']}，{info['天气']}。"
+                f"要我按这个温度帮你搭一套吗？")
+    t = float(str(info["当前温度"]).replace("°C", ""))
+    hint = ("厚外套加毛衣" if t < 10 else "薄外套或针织衫" if t < 16 else
+            "长袖加件薄外套" if t < 22 else "单件长袖或 T 恤" if t < 26 else "清凉夏装")
+    return (f"{city}现在 {info['当前温度']}，{info['天气']}"
+            + (f"，降雨概率 {info['降雨概率']}%" if info.get("降雨概率") is not None else "")
+            + f"。这个温度{hint}就舒服。要我按这个天气帮你搭一套吗？")
 
 # ---------- 旅游目的地场景 ----------
 # 旅游语义词：出现这些且带「穿搭诉求」时判 travel，走目的地未来天气推荐。
@@ -491,6 +892,24 @@ def _detect_travel(text: str) -> bool:
     return has_outfit or _extract_dest_city(t) is not None
 
 
+def _detect_reject(text: str) -> bool:
+    """本地检测否定/换一批意图（2026-11-17 补回：此前实现未落盘）。
+
+    「这些都不喜欢/不满意/换一批/不要这些」= reject，要换掉上一批方案；
+    「第二套把鞋换成靴子」是 refine，不能混进来（refine 有 _detect_refine 独立判定，
+    且本函数不含「换成」这类单改一个件的词）。
+    """
+    t = (text or "").strip()
+    if not t:
+        return False
+    dislike = (
+        "不喜欢", "不满意", "不想要", "不行", "不好看", "太丑", "不要这些",
+        "都不喜欢", "都不满意", "都不行", "这几套都不", "这些都不", "换一批",
+        "重新推荐", "重新搭", "重来", "再换", "换别的", "换个别的", "别推这些",
+    )
+    return any(w in t for w in dislike)
+
+
 def _classify_intent_rules(text: str) -> str:
     """关键词兜底规则（无 LLM / 模型失败时使用）。"""
     t = (text or "").strip()
@@ -502,49 +921,105 @@ def _classify_intent_rules(text: str) -> str:
             return "compare"
     if _detect_refine(t):
         return "refine"
-    if any(w in t for w in _RECOMMEND_WORDS):
-        return "recommend"
+    # 对话式锁定/追加：用户说「第1套不错」「加个配饰」时不该重新出三套
+    if _detect_add(t):
+        return "augment"
+    if _detect_lock(t) and (_extract_outfit_index(t) is not None or _has_strong_domain_signal(t)):
+        return "lock"
+    # 旅游先于推荐：「去厦门玩3天穿什么」含「穿什么」，必须先被 travel 拿走
     if _detect_travel(t):
         return "travel"
+    if _detect_reject(t):
+        return "reject"
+    if _has_recommend_signal(t) and _has_strong_domain_signal(t):
+        return "recommend"
+    if _detect_trend(t):
+        return "trend"
+    if _detect_weather_query(t):
+        return "weather"
+    if _detect_off_topic(t):
+        return "off_topic"
     if t.endswith(("?", "？", "吗", "呢", "吧")):
         return "knowledge"
     # 纯知识问法：问概念/能不能/原理，要的是解释而非搭配方案
     if any(h in t for h in ("有哪些种类", "有哪些类型", "什么种类", "能一起穿",
                             "能不能一起", "可以一起穿", "三色原则", "是什么", "什么意思")):
         return "knowledge"
-    if t.startswith(_KNOWLEDGE_HEADS) or any(h in t for h in ("怎么选", "怎么搭", "如何选", "为什么")):
+    if t.startswith(_KNOWLEDGE_HEADS) or any(h in t for h in ("怎么选", "如何选", "为什么")):
         return "knowledge"
     return "recommend"
 
 
-def _classify_intent(text: str) -> str:
-    """后端统一意图识别（1.5）：LLM 优先，关键词规则兜底。
+@lru_cache(maxsize=512)
+def _judge(text: str) -> dict:
+    """统一裁决（LLM 主）：一次调用同时判「域 + 意图」，进程内缓存避免重复调用。
 
-    LLM 能理解「今天穿什么」「有啥配饰可以搭」这类口语/语病问法，
-    不再一律按关键词落到 recommend。无 key / 模型失败自动回退规则，
-    保证离线部署行为与升级前一致。
+    返回 {"domain": "in"|"out"|"unknown", "intent": 标签|None}。
+    LLM 不可用（无 key / 失败）时 domain=unknown，由调用方退回本地规则兜底。
+    这是现在唯一的「主裁决」——本地词表无权再前置放行，只能做事后窄修正。
+    """
+    t = (text or "").strip()
+    if not t:
+        return {"domain": "in", "intent": "free_text"}
+    verdict = classify(t)
+    if verdict is None:
+        return {"domain": "unknown", "intent": None}
+    return verdict
+
+
+def _classify_intent(text: str) -> str:
+    """意图识别：LLM 主裁决 + 本地后置窄修正 + 关键词兜底。
+
+    架构原则（2026-11-18 重构）：
+    - LLM 先判域，out 就是 off_topic，本地词表无权翻案——根治「奥特曼喜欢穿什么」
+      「怎么搭车」「搭一套煎饼」被裸词短路放行的 bug。
+    - 本地规则只在 LLM 判 in 后做「窄修正」：补 LLM 的已知弱点（结构化动作槽位、
+      「今天穿什么?」被误判 knowledge），且只在有明确证据时改，不再靠裸词放行。
+    - LLM 不可用时退回关键词规则，保证离线/超时仍可用。
     """
     t = (text or "").strip()
     if not t:
         return "free_text"
 
-    # 这几个是结构化动作，必须先由本地规则锁定，避免 LLM 误判导致 payload 缺字段。
-    if any(w in t for w in ("会怎样", "怎么样", "对比", "比较一下", "如果换")):
-        return "compare"
+    verdict = _judge(t)
+    domain, intent = verdict["domain"], verdict["intent"]
+
+    # 1) LLM 明确判域外 → 拒答。最高优先级，本地任何词表都不再能放行。
+    if domain == "out":
+        return "off_topic"
+    # 2) LLM 不可用 → 退回本地关键词规则（离线降级）。
+    if domain == "unknown":
+        return _classify_intent_rules(t)
+
+    # 3) domain=in：本地只做「后置窄修正」，且必须本地检测确认（不是裸词命中就放行）。
+    #    结构化动作：LLM 判得对也保留本地抽槽位，判错则用本地结果纠正。
     if _detect_refine(t):
         return "refine"
-    # 旅游：本地检测优先，保证「去厦门玩3天穿什么」不被 LLM 误判成普通 recommend。
-    if _detect_travel(t):
+    if _detect_add(t):
+        return "augment"
+    if _detect_lock(t) and (_extract_outfit_index(t) is not None or _has_strong_domain_signal(t)):
+        return "lock"
+    if _detect_travel(t) and _extract_dest_city(t) is not None:
         return "travel"
+    if _detect_reject(t):
+        return "reject"
+    if _detect_weather_query(t):
+        return "weather"
+    if intent == "compare" or any(w in t for w in ("会怎样", "对比", "比较一下", "如果换")):
+        return "compare"
 
-    predicted = classify_intent(t)
-    # LLM 判成 travel 但本地没检测到时，只要有目的地城市也采信（口语/语病场景）
-    if predicted == "travel" and _extract_dest_city(t) is None:
-        predicted = None
-    # refine 必须带出「改第几套的哪个品类」，模型判了但本地解析不到时不能采用。
-    if predicted == "refine" and not _detect_refine(t):
-        predicted = None
-    return predicted if predicted else _classify_intent_rules(t)
+    # 历史已知偏差：LLM 偶尔把「今天穿什么?」判成 knowledge（出文献不出卡片）。
+    # 只在明确穿搭请求信号存在时才纠，且这是「LLM 判 in 之后」的窄修正。
+    if intent == "knowledge" and _has_recommend_signal(t) and _has_strong_domain_signal(t):
+        return "recommend"
+
+    # LLM 判的结构化动作若本地抽不到必需槽位，不采信，退回本地规则。
+    if intent in ("refine", "reject") and not (_detect_refine(t) if intent == "refine" else _detect_reject(t)):
+        return _classify_intent_rules(t)
+    if intent == "travel" and _extract_dest_city(t) is None:
+        return _classify_intent_rules(t)
+
+    return intent if intent else _classify_intent_rules(t)
 
 
 def _parse_free_text(text: str) -> tuple[str, dict]:
@@ -578,6 +1053,33 @@ def _parse_free_text(text: str) -> tuple[str, dict]:
         return "temp_pref_style", {"style": "设计款"}
 
     return "free_text", {"text": text}
+
+
+def _last_recommended_cores(db: Session, session_id: str, exclude_message_id: str | None = None) -> list[str]:
+    """取最近一轮推荐的搭配核心签名（上装+下装/连衣裙组合）。
+
+    用户说「这些都不喜欢」时，把上一轮卡片里的核心组合记入 rejected_cores，
+    之后整组排除——只排除整套指纹不够，换个鞋又会出同样的上装+下装。
+    从历史 response 的 outfits 反算签名，与引擎过滤端共用 outfit_core_signature
+    （response 的 item 无 sub_category，签名函数只用归一化 category）。
+    """
+    q = (db.query(ChatMessage)
+         .filter(ChatMessage.session_id == session_id,
+                 ChatMessage.role == "agent",
+                 ChatMessage.action == "recommend")
+         .order_by(ChatMessage.created_at.desc()))
+    rows = q.limit(3).all()
+    cores: list[str] = []
+    for msg in rows:
+        if exclude_message_id and msg.message_id == exclude_message_id:
+            continue
+        for o in (msg.payload or {}).get("outfits") or []:
+            c = outfit_core_signature(o)
+            if c:
+                cores.append(c)
+        if cores:
+            break  # 只取最近一轮（有方案的那条）
+    return cores
 
 
 def _run_recommend(db: Session, request: Request, session: ChatSession, user: User,
@@ -623,6 +1125,7 @@ def _run_recommend(db: Session, request: Request, session: ChatSession, user: Us
         if (session.temp_pref_color or session.temp_pref_style) else {},
         constraints=session.constraints or {},
         shown_outfit_ids=session.shown_outfit_ids or [],
+        rejected_cores=(session.constraints or {}).get("rejected_cores") or [],
         body_shape=user.body_shape or "匀称",
         long_term_prefs={
             "color": user.pref_color,
@@ -816,41 +1319,284 @@ _ORDINAL = {"一": 1, "二": 2, "三": 3, "1": 1, "2": 2, "3": 3}
 _CAT_WORDS = [
     ("连衣裙", "连衣裙"), ("裤子", "下装"), ("长裤", "下装"), ("短裤", "下装"), ("裙", "下装"),
     ("外套", "外套"), ("风衣", "外套"), ("大衣", "外套"), ("羽绒服", "外套"), ("夹克", "外套"),
-    ("鞋", "鞋"), ("靴", "鞋"), ("板鞋", "鞋"), ("皮鞋", "鞋"),
-    ("配饰", "配饰"), ("围巾", "配饰"), ("包", "配饰"),
+    ("鞋", "鞋"), ("靴", "鞋"), ("板鞋", "鞋"), ("皮鞋", "鞋"), ("运动鞋", "鞋"),
+    ("配饰", "配饰"), ("围巾", "配饰"), ("帽子", "配饰"), ("包", "配饰"), ("腰带", "配饰"),
+    ("首饰", "配饰"), ("项链", "配饰"), ("手表", "配饰"), ("墨镜", "配饰"), ("手套", "配饰"),
     ("上衣", "上装"), ("上装", "上装"), ("T恤", "上装"), ("衬衫", "上装"), ("毛衣", "上装"),
     ("针织", "上装"), ("卫衣", "上装"),
 ]
+# 细化到子品类：用户点名「换成裙子/短靴/风衣」时，替代也限定在同一子品类，
+# 否则「换成裙子」会在「下装」里按保暖配色挑到另一条牛仔裤（Q17）。
+_SUB_WORDS = (
+    ("连衣裙", "连衣裙"),
+    ("半身裙", "半身裙"), ("短裙", "半身裙"), ("长裙", "半身裙"), ("裙子", "半身裙"),
+    ("阔腿裤", "阔腿裤"), ("直筒裤", "直筒裤"), ("工装裤", "工装裤"),
+    ("短靴", "短靴"), ("帆布鞋", "帆布鞋"), ("板鞋", "板鞋"), ("运动鞋", "运动鞋"),
+    ("风衣", "风衣"), ("羽绒服", "羽绒服"), ("皮衣", "皮衣"),
+    ("帽子", "帽子"), ("围巾", "围巾"), ("项链", "项链"), ("墨镜", "墨镜"),
+)
+# 吐槽某单品 = 换掉它：「这帽子不太搭」「鞋太丑了」不必明说「换」也算单品级微调。
+# 必须是**单数/具体单品**的否定；「这些都不喜欢/换一批」由 _detect_reject 先行拦截。
+_ITEM_DISLIKE = ("不搭", "不太搭", "不好看", "不好看", "不协调", "突兀", "太丑", "难看",
+                 "不喜欢这个", "不喜欢这", "不满意这个", "怪怪的", "违和", "不顺眼")
 
 
 def _detect_refine(text: str):
-    """识别「对某套满意，只想改某个单品」的意图。返回 (idx, category) 或 None。"""
+    """识别「对某套满意，只想改某个单品」的意图。返回 {"index", "category"} 或 None。
+
+    两条路径：
+    1. 明确换的动词 + 品类词：「第二套把鞋换成靴子」「换个帽子」
+    2. 否定某具体单品（含锁定时）：「这个帽子好像不太搭」= 换掉帽子
+    """
     t = (text or "").strip()
     if not t:
         return None
-    has_verb = any(v in t for v in _REFINE_VERB)
     cat = None
     for word, mapped in _CAT_WORDS:
         if word in t:
             cat = mapped
             break
-    if not has_verb or not cat:
+    if not cat:
+        return None
+
+    has_verb = any(v in t for v in _REFINE_VERB)
+    has_dislike = any(v in t for v in _ITEM_DISLIKE)
+    # 整批否定（都不喜欢/换一批）不是单品微调，交给 reject。
+    # 注意不能用 _detect_reject——它含「不好看/太丑」，那些在单品语境下正是 refine。
+    _BATCH_REJECT = ("都不喜欢", "都不满意", "都不行", "这几套都不", "这些都不",
+                     "换一批", "重新推荐", "重新搭", "重来", "不要这些", "别推这些")
+    if any(v in t for v in _BATCH_REJECT):
+        return None
+    if not (has_verb or has_dislike):
         return None
 
     idx = None
     # 方案 2 / 第 2 套 / LOOK 2 / 第二套
-    m = re.search(r"(?:方案|第)\s*([1-3一二三])\s*(?:套|个)?", t) or _re.search(r"look\s*([1-3])", t, _re.I)
+    m = re.search(r"(?:方案|第)\s*([1-3一二三])\s*(?:套|个)?", t) or re.search(r"look\s*([1-3])", t, re.I)
     if m:
         key = m.group(1)
         idx = _ORDINAL.get(key)
-    return {"index": idx, "category": cat}
+    sub = next((mapped for word, mapped in _SUB_WORDS if word in t), None)
+    return {"index": idx, "category": cat, "sub_category": sub}
+
+
+# ---------- 对话式锁定某套 + 追加单品 ----------
+# 用户不点卡片上的按钮，而是在对话里说「第1套不错 / 就选这套 / 我挺喜欢第二套」，
+# 这类话要识别为锁定，把那一套单独调出来，后续微调都基于它。
+_LOCK_WORDS = ("喜欢", "满意", "中意", "看好", "选中", "就选", "就要", "定了",
+               "就用这", "就这套", "就它", "这套不错", "这套好", "这个不错", "这个好",
+               "套不错", "套好", "可以就要", "就定", "选这个", "要这个")
+_ADD_VERBS = ("加个", "加一件", "加一双", "加条", "加一顶", "加一块", "加上",
+              "添个", "添一件", "添条", "添件", "配个", "配一件", "配条",
+              "来个", "搭个", "来一件", "搭一件")
+
+# 时尚资讯：用户想了解趋势/热门色/风格，重点不是搭配自己的衣橱。
+_TREND_WORDS = ("流行", "趋势", "时尚", "热门穿搭", "热门色", "流行色", "今年穿",
+                "这季", "本季", "时装周", "什么风格火", "穿搭风格", "穿搭资讯",
+                "最近火", "现在流行", "潮流")
+
+
+def _detect_trend(text: str) -> bool:
+    """识别「想了解时尚资讯」话语。要搭配自己的衣橱不算（走 recommend）。"""
+    t = (text or "").strip()
+    if not t:
+        return False
+    # 明确要方案的词优先排除：「今天穿什么」「帮我搭」即使带「流行」也要出卡片
+    if _has_recommend_signal(t):
+        return False
+    return any(w in t for w in _TREND_WORDS)
+
+
+# 中文问题 -> 标签同义词扩展。用于把「今年流行什么颜色」映射到采集时打的英文来源标签。
+_TREND_TAG_SYNONYMS: dict[str, tuple[str, ...]] = {
+    # 泛问：问「流行什么颜色/风格/单品」时展开为整个类别，而不是落空取最新
+    "什么颜色": ("红色", "酒红", "粉色", "橙色", "黄色", "绿色", "蓝色",
+                 "紫色", "棕色", "灰色", "白色", "奶油色", "米色", "黑色", "中性色"),
+    "哪个颜色": ("红色", "酒红", "粉色", "橙色", "黄色", "绿色", "蓝色",
+                 "紫色", "棕色", "灰色", "白色", "奶油色", "米色", "黑色", "中性色"),
+    "流行色": ("红色", "酒红", "粉色", "橙色", "黄色", "绿色", "蓝色",
+               "紫色", "棕色", "灰色", "白色", "奶油色", "米色", "黑色", "中性色"),
+    "什么风格": ("极简风", "老钱风", "复古风", "街头风", "浪漫风", "运动风", "波西米亚", "暗黑风"),
+    "哪种风格": ("极简风", "老钱风", "复古风", "街头风", "浪漫风", "运动风", "波西米亚", "暗黑风"),
+    "什么单品": ("针织", "毛衣", "牛仔", "外套", "西装", "连衣裙", "半裙", "鞋履", "包袋", "配饰"),
+    "哪些单品": ("针织", "毛衣", "牛仔", "外套", "西装", "连衣裙", "半裙", "鞋履", "包袋", "配饰"),
+    "红": ("红色", "酒红"), "粉": ("粉色",), "橙": ("橙色",), "黄": ("黄色",),
+    "绿": ("绿色",), "蓝": ("蓝色", "牛仔"), "紫": ("紫色",), "棕": ("棕色", "美拉德"),
+    "灰": ("灰色",), "白": ("白色", "奶油色"), "黑": ("黑色",), "米": ("米色", "中性色"),
+    "奶油": ("奶油色", "米色"), "美拉德": ("棕色", "美拉德"), "多巴胺": ("黄色", "粉色", "橙色"),
+    "针织": ("针织", "毛衣"), "牛仔": ("牛仔", "蓝色"), "西装": ("西装", "通勤"),
+    "通勤": ("通勤", "西装"), "外套": ("外套", "西装"), "裙": ("连衣裙", "半裙"),
+    "鞋": ("鞋履",), "包": ("包袋",), "首饰": ("首饰", "配饰"), "配饰": ("配饰",),
+    "复古": ("复古风",), "极简": ("极简风", "老钱风"), "老钱": ("老钱风", "极简风"),
+    "运动": ("运动风",), "街头": ("街头风",), "浪漫": ("浪漫风", "印花"),
+    "度假": ("度假风",), "婚礼": ("婚礼",), "红毯": ("明星红毯",),
+    "秋": ("秋季",), "冬": ("冬季",), "春": ("春季",), "夏": ("夏季",),
+}
+
+
+def _trend_query_tags(text: str) -> list[str]:
+    """从中文问题里抽出用于匹配灵感图的中文标签。"""
+    t = (text or "")
+    tags: list[str] = []
+    for key, syn in _TREND_TAG_SYNONYMS.items():
+        if key in t:
+            for s in syn:
+                if s not in tags:
+                    tags.append(s)
+    # 用户直接说出完整标签（如「想看针织」）
+    for known in {s for group in _TREND_TAG_SYNONYMS.values() for s in group}:
+        if known in t and known not in tags:
+            tags.append(known)
+    return tags
+
+
+def _query_gender(text: str) -> str | None:
+    """从问题里抽性别指向：male / female / None（中性不筛）。
+
+    只在明确说出男/女时过滤，避免「男生穿搭」错配女模特图这类图文不符。
+    """
+    t = (text or "").lower()
+    if any(w in t for w in ("男生", "男士", "男人", "男装", "男性", "男士穿搭", "男孩子", "men's", "menswear", "for men")):
+        return "male"
+    if any(w in t for w in ("女生", "女士", "女人", "女装", "女性", "女孩子", "women's", "womenswear", "for women")):
+        return "female"
+    return None
+
+
+# 性别判定：标题/摘要/标签里出现强性别词即归类，冲突时女装词优先（采集源以女装为主，宁缺勿错配）
+_MALE_HINT = re.compile(
+    r"menswear|men'?s|men\b|male|gentleman|^\bhis\b|\bhis\b|guy|boys|tailoring"
+    r"|tom ford|dsquared2|suit", re.I)
+_FEMALE_HINT = re.compile(
+    r"women|woman|female|ladies|lady|bride|bridal|wedding"
+    r"|dress|skirt|manicure|makeup|lipstick|heels|feminine|her\b|she\b|girls", re.I)
+
+
+def _inspo_gender(r) -> str | None:
+    """单条灵感图的性别：male / female / None（不确定）。"""
+    text = " ".join(str(x or "") for x in (r.title, r.summary, " ".join(r.tags or [])))
+    male = bool(_MALE_HINT.search(text))
+    female = bool(_FEMALE_HINT.search(text))
+    if female and not male:
+        return "female"
+    if male and not female:
+        return "male"
+    return None
+
+
+def _trend_images(db: Session, query: str, user_id: str) -> dict:
+    """装配双栏图片：左栏=采集到的时尚资讯灵感图，右栏=衣橱里真实可穿的单品。
+
+    问「男生/女士穿搭」时左栏只取对应性别的图；库里没有对应性别图时
+    宁可留空，也不塞相反性别的模特图（图文不符比没图更糟）。
+    两栏都失败/为空时返回空列表，前端只显示文字，不影响主回答。
+    """
+    result: dict[str, list[dict]] = {"inspo": [], "wardrobe": []}
+    tags = _trend_query_tags(query)
+    gender = _query_gender(query)
+
+    try:
+        rows = (db.query(FashionInspo)
+                  .order_by(FashionInspo.fetched_at.desc())
+                  .limit(120).all())
+        if gender:
+            # 强过滤：只保留同性别 + 不确定的中性图；明确相反性别的一律排除
+            opposite = "female" if gender == "male" else "male"
+            rows = [r for r in rows if _inspo_gender(r) != opposite]
+        scored: list[tuple[int, int, FashionInspo]] = []
+        for i, r in enumerate(rows):
+            hit = sum(1 for t in tags if t in (r.tags or []))
+            # 同分时新的优先；没命中标签时也带一批最新图兜底
+            scored.append((hit, -i, r))
+        scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
+        # 命中的优先；命中不足 2 张时只补 1~2 张近期图，并标记「近期」避免图文脱节
+        matched = [x for x in scored if x[0] > 0][:4]
+        if len(matched) < 2:
+            recent = [x for x in scored if x[0] == 0][:2 - len(matched)]
+            matched = matched + recent
+        for hit, _, r in matched:
+            result["inspo"].append({
+                "title": r.title, "image": r.image_path, "link": r.link,
+                "source": "Vogue" if r.source == "vogue" else "ELLE",
+                "tags": (r.tags or [])[:4],
+                "match": bool(hit > 0),
+            })
+    except Exception:
+        pass
+
+    try:
+        items = (db.query(ClothingItem)
+                   .filter(ClothingItem.user_id == user_id)
+                   .filter(ClothingItem.image_url != "")
+                   .all())
+        scored_items: list[tuple[int, ClothingItem]] = []
+        for it in items:
+            hay = " ".join(str(x or "") for x in (
+                it.color, it.style, it.category, it.sub_category,
+                it.name, " ".join(it.tags or []),
+            ))
+            hit = sum(1 for t in tags if t in hay)
+            scored_items.append((hit, it))
+        scored_items.sort(key=lambda x: x[0], reverse=True)
+        for _, it in scored_items[:4]:
+            result["wardrobe"].append({
+                "name": it.name, "image": it.image_url,
+                "color": it.color or "", "category": it.category or "",
+            })
+    except Exception:
+        pass
+
+    return result
+
+
+def _extract_outfit_index(text: str) -> int | None:
+    """从「第2套 / 方案一 / look 3」抽套号，无号返回 None。"""
+    m = re.search(r"(?:第|方案|look|LOOK)\s*([1-3一二三])\s*(?:套|个)?", text)
+    return _ORDINAL.get(m.group(1)) if m else None
+
+
+def _detect_lock(text: str) -> dict | None:
+    """识别「锁定某套」话语，返回 {"index": n} 或 None。
+
+    必须有明确锁定词；单独一句「不错」不算，避免误伤。
+    「都不喜欢」由 _detect_reject 先行拦截，不会进这里。
+    """
+    t = (text or "").strip()
+    if not t or _detect_reject(t):
+        return None
+    if not any(w in t for w in _LOCK_WORDS):
+        return None
+    # 指代「这套/这个/第一套」：有套号取套号，没有默认第 1 套（对话里最常指首套）
+    idx = _extract_outfit_index(t)
+    return {"index": idx or 1}
+
+
+def _detect_add(text: str) -> dict | None:
+    """识别「在锁定套上加一件某品类」，返回 {"category": ...} 或 None。"""
+    t = (text or "").strip()
+    if not t or not any(v in t for v in _ADD_VERBS):
+        return None
+    for word, mapped in _CAT_WORDS:
+        if word in t:
+            return {"category": mapped}
+    return None
 
 
 def _load_base_outfit(db: Session, session, index):
-    """取出会话中最近一轮推荐的第 index 套（默认第 1 套）。"""
+    """取出会话中最近一轮推荐的第 index 套（默认第 1 套）。
+
+    若会话已锁定某套（constraints.locked_outfit），优先返回锁定的那套——
+    用户说「就这套，加个配饰」时必须接着这一套改，而不是最近一轮的第 1 套。
+    """
+    cons = session.constraints or {}
+    locked = cons.get("locked_outfit")
+    # 有锁定套且用户没指定别的套号（或指定的就是第1套=默认锁定套）时沿用锁定态。
+    # 用户明确说「第二套」时仍走历史，避免把锁定的第1套硬塞给第二套。
+    if locked and (index is None or index == 1):
+        return locked
     msgs = db.query(ChatMessage).filter(
         ChatMessage.session_id == session.session_id,
-        ChatMessage.action.in_(["recommend", "refine"]),
+        ChatMessage.action.in_(["recommend", "refine", "augment", "lock"]),
     ).order_by(ChatMessage.created_at.desc()).all()
     for m in msgs:
         outfits = (m.payload or {}).get("outfits") or []
@@ -875,6 +1621,50 @@ def _item_dicts(db: Session, user_id: str) -> list[dict]:
     } for i in rows]
 
 
+def _closet_inventory_context(items: list[dict]) -> list[str]:
+    """构造给 LLM 的衣橱上下文：分类统计 + 逐件清单 + 检索判断规则。
+
+    旧实现只把「上衣18件、下装10件」这类统计塞进上下文，模型因此回答
+    「看不到每件单品的具体名称」。用户问「衣橱里有没有某件衣服」时必须能
+    检索到具体单品，故逐件列出名称/品类/子品类/颜色/风格/季节。
+    """
+    if not items:
+        return []
+    cats: dict[str, int] = {}
+    for it in items:
+        cat = it.get("category") or "其他"
+        cats[cat] = cats.get(cat, 0) + 1
+    lines = [
+        f"用户衣橱共 {len(items)} 件："
+        + "、".join(f"{k}{v}件" for k, v in cats.items()),
+        "【衣橱单品清单：你能完整查看用户衣橱；用户问有没有某件衣服时，必须逐件检索本清单】",
+    ]
+    for idx, it in enumerate(items[:80], start=1):
+        name = str(it.get("name") or "").strip()
+        if not name:
+            name = str(it.get("color") or "") + str(it.get("sub_category") or "单品")
+        meta: list[str] = []
+        cat, sub = it.get("category"), it.get("sub_category")
+        if cat or sub:
+            meta.append("/".join(str(x) for x in (cat, sub) if x))
+        for key in ("color", "style", "season", "fabric"):
+            val = it.get(key)
+            if val and str(val) not in ("未知", "四季"):
+                meta.append(str(val))
+        line = f"{idx}. {name}"
+        if meta:
+            line += "｜" + "｜".join(meta)
+        lines.append(line)
+    if len(items) > 80:
+        lines.append(f"（以上仅列出前 80 件，衣橱共 {len(items)} 件）")
+    lines.append(
+        "检索判断规则：名称/品类/子品类/颜色明确对应就说「有」并列出是哪几件；"
+        "只有同品类或相近颜色/款式、记录缺少领型等细节时说「有相近的/疑似有」并说明依据；"
+        "确实没有才说没有。不要回答「看不到具体单品」「只能看到总数」。"
+    )
+    return lines
+
+
 def _make_ctx(session, user) -> RecommendContext:
     """按会话状态构造推荐上下文（与 _run_recommend 保持一致）。"""
     return RecommendContext(
@@ -887,6 +1677,7 @@ def _make_ctx(session, user) -> RecommendContext:
         if (session.temp_pref_color or session.temp_pref_style) else {},
         constraints=session.constraints or {},
         shown_outfit_ids=session.shown_outfit_ids or [],
+        rejected_cores=(session.constraints or {}).get("rejected_cores") or [],
         body_shape=user.body_shape or "匀称",
         long_term_prefs={
             "color": user.pref_color, "style": user.pref_style,
@@ -913,16 +1704,48 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
     payload = req.payload or {}
 
     # 1.5 意图分流收到后端单点：前端只传原文（action="auto"）时由后端统一判定
-    if action == "auto":
+    # 固定名字呼唤 / 人设问答走预设答案，不参与关键词或 LLM 分类。
+    preset_answer = _preset_answer(payload.get("text", ""))
+    other_name_call = _detect_other_name_call(payload.get("text", ""))
+    if preset_answer:
+        action = "persona"
+    elif other_name_call:
+        action = "off_topic"
+    elif action == "auto":
         action = _classify_intent(payload.get("text", ""))
+        # 能力白名单门禁：本地没明确在域/域外的模糊问题，让 LLM 按五项能力判一次。
+        # 只拦「准备走知识问答/echo」这类会硬答的分支，结构化动作已由本地规则锁定。
+        if action in ("knowledge", "free_text") and _domain_allows(payload.get("text", "")) is False:
+            action = "off_topic"
         if action == "refine":
             payload = {**payload, "refine": _detect_refine(payload.get("text", ""))}
+        if action == "lock":
+            payload = {**payload, "lock": _detect_lock(payload.get("text", ""))}
+        if action == "augment":
+            payload = {**payload, "augment": _detect_add(payload.get("text", ""))}
+
+    # 澄清回答回收：上一轮问了「什么场合/多少度」，用户答「聚会」「18-25℃」这类词
+    # 常被判成 free_text。这里把场合/温度写回 session，避免下一轮又缺信息无限反问。
+    # 只在尚未展示过方案时回收，避免把推荐流程里的随口一提误当成回答。
+    text_now = payload.get("text", "")
+    if not session.shown_outfit_ids:
+        if not (session.occasion or "").strip():
+            _occ = _match_occasion(text_now)
+            if _occ and _classify_intent(text_now) in ("free_text", "echo"):
+                session.occasion = _occ
+                action = "recommend"
+        if session.weather_temp is None:
+            _temp = _match_temperature(text_now)
+            if _temp is not None and _classify_intent(text_now) in ("free_text", "echo"):
+                session.weather_temp = _temp
+                session.weather_source = session.weather_source or "clarify"
+                action = "recommend"
 
     # 旅游场景：会话级「等待目的地」状态。用户先说「想去旅游」但没给城市时反问，
     # 下一句补上城市名后，即使被判成别的意图也要回到旅游流程。
     constraints = session.constraints or {}
     travel_pending = bool(constraints.get("travel_pending"))
-    text_now = payload.get("text", "")
+
     if travel_pending and action in ("recommend", "free_text", "knowledge", "travel"):
         action = "travel"
 
@@ -936,6 +1759,23 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
         payload=payload,
     )
     db.add(msg)
+
+    # 人设/呼唤：固定答案，不检索、不调 LLM、不走推荐流程。
+    if action == "persona":
+        content = preset_answer or _NAME_CALL_REPLY
+        agent_msg = ChatMessage(
+            message_id=utils.gen_id("m"), session_id=session_id, role="agent",
+            action="persona", content=content, payload={"preset": True},
+        )
+        db.add(agent_msg)
+        db.commit()
+        return ok(data={
+            "message_id": agent_msg.message_id, "role": "agent", "action": "persona",
+            "content": content, "outfits": [], "passages": [],
+            "llm_enabled": config.is_llm_enabled(), "answer_source": "preset",
+            "degraded": False, "degraded_reason": "",
+            "remaining_count": session.remaining_count,
+        })
 
     # 旅游场景：目的地未来天气驱动推荐。
     # 用户去的是另一座城市，绝不能用当前城市的实时天气，也不用前端传来的天气。
@@ -988,6 +1828,16 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
         else:
             _refresh_session_weather(db, session, user)
 
+    # 本地强约束兜底：LLM 偶尔把「不要黑色」判成普通 recommend，绕过约束解析，
+    # 导致排除色写不进 session、照样推出黑色单品（Q18 实测踩坑）。
+    # 只锁定「不要/排除/别 + 颜色」这类明确约束；「温柔/深色」等宽泛偏好
+    # 仍交给 LLM，避免把「推荐一套温柔的穿搭」误当成偏好设置。
+    if action in ("recommend", "free_text", "echo"):
+        _pa, _pp = _parse_free_text(text_now)
+        if _pa == "exclude_color":
+            action = _pa
+            payload = {**_pp, "text": text_now}
+
     # 先识别「锁定某套 + 只改一个单品」的改良意图
     if action == "free_text":
         _rf = _detect_refine(payload.get("text", ""))
@@ -1000,7 +1850,8 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
         parsed_action, parsed_payload = _parse_free_text(payload.get("text", ""))
         if parsed_action != "free_text":
             action = parsed_action
-            payload = parsed_payload
+            # 保留原文：约束更新后要直接重算推荐，recommend 分支需要它生成文案
+            payload = {**parsed_payload, "text": payload.get("text", "")}
 
     # 2.2 主动澄清：首次推荐且场合/天气都缺时先反问，不凭空猜一套还照样扣额度
     _needs = _clarify_needs(payload.get("text", ""), session) if action == "recommend" else []
@@ -1037,59 +1888,84 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
             "remaining_count": session.remaining_count,
         })
 
-    # 处理约束更新类动作
+    # 处理约束更新类动作。
+    # 前端对 constraint_updated 没有二次请求逻辑——旧实现只回一句「重新推荐中...」
+    # 就返回空卡，用户永远等不到新方案（Q18）。改为写入约束后直接转入 recommend
+    # 重算并出卡，文案作为约束说明拼在推荐结果前面。
+    constraint_note = ""
     if action == "exclude_color":
         colors = payload.get("colors", [])
         session.constraints = session.constraints or {}
         session.constraints.setdefault("exclude_colors", [])
         session.constraints["exclude_colors"] = list(set(session.constraints["exclude_colors"]) | set(colors))
-        db.commit()
-        return ok(data={
-            "message_id": utils.gen_id("m"),
-            "role": "agent",
-            "action": "constraint_updated",
-            "content": f"已排除颜色：{', '.join(colors)}，重新推荐中...",
-            "outfits": [],
-            "remaining_count": session.remaining_count,
-            "constraints": session.constraints,
-        })
+        constraint_note = f"已按你的要求排除「{', '.join(colors)}」，重新搭了一套：\n"
+        action = "recommend"
 
     if action == "replace_category":
         session.constraints = session.constraints or {}
         session.constraints.setdefault("replace", [])
         session.constraints["replace"].append({"from": payload.get("from", ""), "to": payload.get("to", "")})
-        db.commit()
-        return ok(data={
-            "message_id": utils.gen_id("m"),
-            "role": "agent",
-            "action": "constraint_updated",
-            "content": f"已将「{payload.get('from')}」替换为「{payload.get('to')}」倾向，重新推荐中...",
-            "outfits": [],
-            "remaining_count": session.remaining_count,
-            "constraints": session.constraints,
-        })
+        constraint_note = f"已把「{payload.get('from')}」换成「{payload.get('to')}」倾向，重新搭了一套：\n"
+        action = "recommend"
 
     if action == "temp_pref_color":
         session.temp_pref_color = payload.get("color", "")
-        db.commit()
-        return ok(data={
-            "message_id": utils.gen_id("m"),
-            "role": "agent",
-            "action": "constraint_updated",
-            "content": f"已记录你偏好「{session.temp_pref_color}」，重新推荐中...",
-            "outfits": [],
-            "remaining_count": session.remaining_count,
-        })
+        constraint_note = f"已记下你偏好「{session.temp_pref_color}」，重新搭了一套：\n"
+        action = "recommend"
 
     if action == "temp_pref_style":
         session.temp_pref_style = payload.get("style", "")
+        constraint_note = f"已记下你偏好「{session.temp_pref_style}」风格，重新搭了一套：\n"
+        action = "recommend"
+
+    # weather：第五项能力，回答天气本身。用真实天气数据，不检索知识库、不硬答常识。
+    if action == "weather":
+        query = payload.get("text", "")
+        history = _recent_history(db, session_id, exclude_message_id=msg.message_id)
+        content = _weather_answer_text(query, session, user,
+                                       passed_w=payload.get("weather"),
+                                       history=history, db=db)
+        agent_msg = ChatMessage(
+            message_id=utils.gen_id("m"), session_id=session_id, role="agent",
+            action="weather", content=content,
+            payload={"query": query, "llm_enabled": config.is_llm_enabled()},
+        )
+        db.add(agent_msg)
         db.commit()
         return ok(data={
-            "message_id": utils.gen_id("m"),
-            "role": "agent",
-            "action": "constraint_updated",
-            "content": f"已记录你偏好「{session.temp_pref_style}」风格，重新推荐中...",
-            "outfits": [],
+            "message_id": agent_msg.message_id, "role": "agent", "action": "weather",
+            "content": content, "outfits": [],
+            "llm_enabled": config.is_llm_enabled(),
+            "remaining_count": session.remaining_count,
+        })
+
+    # trend：时尚资讯（流行趋势/热门色/风格）。重点是通用资讯，不绑衣橱、
+    # 不检索本地知识库——知识库是穿搭原理，给不了「最近流行什么」。
+    if action == "trend":
+        query = payload.get("text", "")
+        images = _trend_images(db, query, session.user_id)
+        history = _recent_history(db, session_id, exclude_message_id=msg.message_id)
+        content = None
+        if config.is_llm_enabled():
+            content = llm_trend(query, history=history)
+        if not content:
+            content = (
+                "我暂时没法获取实时时尚资讯（模型未启用或调用失败）。"
+                "可以换个具体一点的问题，比如「今年流行什么颜色」或「通勤怎么穿显高级」，"
+                "我会基于穿搭知识为你分析。"
+            )
+        agent_msg = ChatMessage(
+            message_id=utils.gen_id("m"), session_id=session_id, role="agent",
+            action="trend", content=content,
+            payload={"query": query, "llm_enabled": config.is_llm_enabled(),
+                     "images": images},
+        )
+        db.add(agent_msg)
+        db.commit()
+        return ok(data={
+            "message_id": agent_msg.message_id, "role": "agent", "action": "trend",
+            "content": content, "outfits": [], "images": images,
+            "llm_enabled": config.is_llm_enabled(),
             "remaining_count": session.remaining_count,
         })
 
@@ -1112,15 +1988,7 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
         ]
         if _prefs:
             _ctx_lines.append("用户长期偏好：" + "、".join(_prefs))
-        _items = _item_dicts(db, session.user_id)
-        if _items:
-            _cats: dict[str, int] = {}
-            for _it in _items:
-                _cats[_it["category"]] = _cats.get(_it["category"], 0) + 1
-            _ctx_lines.append(
-                f"用户衣橱共 {len(_items)} 件：" +
-                "、".join(f"{k}{v}件" for k, v in _cats.items())
-            )
+        _ctx_lines.extend(_closet_inventory_context(_item_dicts(db, session.user_id)))
         _closet_context = "\n".join(_ctx_lines)
         query = payload.get("text", "")
         if not query:
@@ -1132,6 +2000,23 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
                 "content": "请输入你想了解的穿搭问题。",
                 "passages": [],
                 "llm_enabled": config.is_llm_enabled(),
+            })
+
+        # 人设问答（你叫什么 / 你能做什么）：固定标准答案，不检索、不编造
+        persona = _persona_answer(query)
+        if persona:
+            db.commit()
+            return ok(data={
+                "message_id": utils.gen_id("m"),
+                "role": "agent",
+                "action": "knowledge",
+                "content": persona,
+                "passages": [],
+                "llm_enabled": config.is_llm_enabled(),
+                "answer_source": "llm",
+                "degraded": False,
+                "degraded_reason": "",
+                "remaining_count": session.remaining_count,
             })
 
         kb: KnowledgeIndex = request.app.state.kb
@@ -1219,10 +2104,32 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
         })
 
     if action == "reject":
+        # 负反馈：把最近一轮搭配的核心组合（上装+下装/连衣裙）记入排除名单。
+        # 只排除整套指纹不够——换个鞋/配饰又会出同样的上装+下装，用户会感觉没换。
+        cores = _last_recommended_cores(db, session_id, exclude_message_id=msg.message_id)
+        if cores:
+            cons = dict(session.constraints or {})
+            rejected = list(cons.get("rejected_cores") or [])
+            for c in cores:
+                if c and c not in rejected:
+                    rejected.append(c)
+            cons["rejected_cores"] = rejected
+            cons.pop("locked_outfit", None)  # 换一批=放弃锁定
+            session.constraints = cons
+            db.commit()
+        else:
+            # 即便没取到核心签名，也要清掉锁定态
+            cons = dict(session.constraints or {})
+            if cons.pop("locked_outfit", None) is not None:
+                session.constraints = cons
+                db.commit()
+
         # 换一套：成本统一由 _run_recommend 扣减，调用方只传 cost（1.3-E）
         outfits, content = _run_recommend(db, request, session, user,
                                           deduct=config.CHAT_COST_REJECT,
                                           user_text=payload.get("text", ""))
+        if cores:
+            content = "已换掉刚才那几套的核心搭配（上装+下装不再重复）。\n" + (content or "")
         agent_msg = ChatMessage(
             message_id=utils.gen_id("m"),
             session_id=session_id,
@@ -1244,6 +2151,74 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
             "remaining_count": session.remaining_count,
         })
 
+    # lock：用户在对话里表达「喜欢/选中第X套」——把那套单独调出来，记入会话锁定态。
+    # 只回这一套卡片，不再铺三套；后续 refine/augment 都基于它。
+    if action == "lock":
+        info = payload.get("lock") or {}
+        base = _load_base_outfit(db, session, info.get("index"))
+        if not base:
+            db.commit()
+            return ok(data={
+                "message_id": utils.gen_id("m"), "role": "agent", "action": "echo",
+                "content": "还没找到可以锁定的方案，先让我给你推荐几套吧。",
+                "outfits": [], "remaining_count": session.remaining_count,
+            })
+        cons = dict(session.constraints or {})
+        cons["locked_outfit"] = base
+        session.constraints = cons
+        agent_msg = ChatMessage(
+            message_id=utils.gen_id("m"), session_id=session_id, role="agent",
+            action="lock", content="已锁定这一套。接下来可以直接说「加个配饰」「把鞋换成靴子」，我在这套上帮你改。",
+            outfits=[base.get("outfit_id", "")], payload={"outfits": [base]},
+        )
+        db.add(agent_msg)
+        db.commit()
+        return ok(data={
+            "message_id": agent_msg.message_id, "role": "agent", "action": "lock",
+            "content": agent_msg.content, "outfits": [base],
+            "remaining_count": session.remaining_count,
+        })
+
+    # augment：用户在锁定套上说「加个配饰 / 添件外套」——只追加一件，回单套卡片。
+    if action == "augment":
+        info = payload.get("augment") or {}
+        base = _load_base_outfit(db, session, info.get("index"))
+        if not base:
+            db.commit()
+            return ok(data={
+                "message_id": utils.gen_id("m"), "role": "agent", "action": "echo",
+                "content": "还没找到可以修改的方案，先让我给你推荐几套吧。",
+                "outfits": [], "remaining_count": session.remaining_count,
+            })
+        all_items = _item_dicts(db, session.user_id)
+        ctx = _make_ctx(session, user)
+        eng = request.app.state.engine
+        res = eng.augment(base.get("items", []), info.get("category", "配饰"), all_items, ctx)
+        if not res.get("outfit"):
+            db.commit()
+            return ok(data={
+                "message_id": utils.gen_id("m"), "role": "agent", "action": "augment",
+                "content": res.get("reason", "暂时没有可添加的单品。"),
+                "outfits": [], "remaining_count": session.remaining_count,
+            })
+        resp = eng.to_response(res["outfit"])
+        # 同步锁定态到修改后的这套，支持连续多轮微调
+        cons = dict(session.constraints or {})
+        cons["locked_outfit"] = resp
+        session.constraints = cons
+        agent_msg = ChatMessage(
+            message_id=utils.gen_id("m"), session_id=session_id, role="agent",
+            action="augment", content=f"已在原来基础上加了「{res['added_name']}」。",
+            outfits=[resp["outfit_id"]], payload={"outfits": [resp]},
+        )
+        db.add(agent_msg)
+        db.commit()
+        return ok(data={
+            "message_id": agent_msg.message_id, "role": "agent", "action": "augment",
+            "content": agent_msg.content, "outfits": [resp],
+            "remaining_count": session.remaining_count,
+        })
+
     if action == "refine":
         info = payload.get("refine") or {}
         base = _load_base_outfit(db, session, info.get("index"))
@@ -1258,7 +2233,8 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
         all_items = _item_dicts(db, session.user_id)
         ctx = _make_ctx(session, user)
         eng = request.app.state.engine
-        res = eng.refine(base.get("items", []), info.get("category"), all_items, ctx)
+        res = eng.refine(base.get("items", []), info.get("category"), all_items, ctx,
+                         sub_category=info.get("sub_category"))
 
         if not res.get("outfit"):
             db.commit()
@@ -1273,11 +2249,15 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
                                        f"把「{res['from_name']}」换成了「{res['to_name']}」。",
                             "points": res.get("points", [])}
         resp = eng.to_response(outfit)
+        # 同步锁定态到替换后的这套，支持「换鞋→再加个包」连续微调
+        cons = dict(session.constraints or {})
+        cons["locked_outfit"] = resp
+        session.constraints = cons
 
         agent_msg = ChatMessage(
             message_id=utils.gen_id("m"), session_id=session_id, role="agent",
             action="refine",
-            content=f"保留其余 {res['kept_count']} 件，只替换了「{res['to_name']}」。",
+            content=f"保留其余 {res['kept_count']} 件，把「{res['from_name']}」换成了「{res['to_name']}」。",
             outfits=[resp["outfit_id"]], payload={"outfits": [resp]},
         )
         db.add(agent_msg)
@@ -1286,6 +2266,18 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
         return ok(data={
             "message_id": agent_msg.message_id, "role": "agent", "action": "refine",
             "content": agent_msg.content, "outfits": [resp],
+            "remaining_count": session.remaining_count,
+        })
+
+    # off_topic：与穿搭无关的问题，委婉拒答并说明我能做什么
+    if action == "off_topic":
+        db.commit()
+        return ok(data={
+            "message_id": utils.gen_id("m"),
+            "role": "agent",
+            "action": "off_topic",
+            "content": _OFF_TOPIC_REPLY,
+            "outfits": [],
             "remaining_count": session.remaining_count,
         })
 
@@ -1303,6 +2295,13 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
 
     outfits, content = _run_recommend(db, request, session, user,
                                      user_text=payload.get("intent") or payload.get("text", ""))
+    if constraint_note:
+        content = constraint_note + content
+
+    # 重新推荐（含「换一批」）= 放弃锁定，清掉锁定态，避免之后「加个配饰」还接着旧套改
+    cons = dict(session.constraints or {})
+    if cons.pop("locked_outfit", None) is not None:
+        session.constraints = cons
 
     # 记录 Agent 消息
     agent_msg = ChatMessage(
@@ -1350,6 +2349,54 @@ def list_sessions(user_id: str, request: Request, limit: int = 20, offset: int =
     })
 
 
+def _purge_sessions(db: Session, session_ids: list[str]) -> None:
+    """物理删除会话及其消息，并清掉会话级天气刷新缓存。"""
+    ids = list(dict.fromkeys(session_ids))
+    if not ids:
+        return
+    db.query(ChatMessage).filter(ChatMessage.session_id.in_(ids)).delete(
+        synchronize_session=False)
+    db.query(ChatSession).filter(ChatSession.session_id.in_(ids)).delete(
+        synchronize_session=False)
+    for sid in ids:
+        _WEATHER_REFRESH_CACHE.pop(sid, None)
+    db.commit()
+
+
+@router.delete("/{session_id}", response_model=schemas.APIResponse)
+def delete_session(session_id: str, request: Request, db: Session = Depends(get_db)):
+    """删除单条历史对话（连同其中的消息）。只能删自己的会话。"""
+    session = db.query(ChatSession).filter(ChatSession.session_id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="会话不存在")
+    security.assert_owner(session.user_id, request)
+    _purge_sessions(db, [session_id])
+    return ok(data={"deleted": [session_id], "deleted_count": 1})
+
+
+@router.post("/sessions/batch-delete", response_model=schemas.APIResponse)
+def batch_delete_sessions(req: schemas.SessionBatchDelete, request: Request,
+                          db: Session = Depends(get_db)):
+    """批量删除 / 清空历史对话。越权 id 直接忽略，不做任何删除。"""
+    security.assert_owner(req.user_id, request)
+    if req.clear_all:
+        ids = [s.session_id for s in db.query(ChatSession.session_id)
+               .filter(ChatSession.user_id == req.user_id).all()]
+    else:
+        ids = list(dict.fromkeys(x for x in req.session_ids if x))
+        if len(ids) > 200:
+            raise HTTPException(status_code=400, detail="单次最多删除 200 条对话")
+    if not ids:
+        return ok(data={"deleted": [], "deleted_count": 0, "requested_count": 0})
+    rows = (db.query(ChatSession.session_id)
+            .filter(ChatSession.user_id == req.user_id,
+                    ChatSession.session_id.in_(ids)).all())
+    found = [r.session_id for r in rows]
+    _purge_sessions(db, found)
+    return ok(data={"deleted": found, "deleted_count": len(found),
+                    "requested_count": len(ids)})
+
+
 @router.get("/{session_id}", response_model=schemas.APIResponse)
 def get_session(session_id: str, request: Request, db: Session = Depends(get_db)):
     session = db.query(ChatSession).filter(ChatSession.session_id == session_id).first()
@@ -1392,6 +2439,13 @@ def send_message_stream(session_id: str, user_id: str,
     if not text:
         raise HTTPException(status_code=400, detail="内容不能为空")
 
+    # 拦截要在检索之前：无关问题不该借知识库片段硬答，人设问答也不该被检索带偏。
+    # 用能力白名单门禁（本地快判 + LLM 开放集兜底）替换纯黑名单，弥补 SSE 不过意图分类的盲区。
+    persona_answer = _preset_answer(text)
+    other_name_call = _detect_other_name_call(text)
+    domain_hit = _domain_allows(text) if persona_answer is None else True
+    off_topic_hit = persona_answer is None and (other_name_call or domain_hit is False)
+
     from app.db import SessionLocal
 
     db = SessionLocal()
@@ -1404,7 +2458,7 @@ def send_message_stream(session_id: str, user_id: str,
         user = db.query(User).filter(User.user_id == session.user_id).first()
 
         kb: KnowledgeIndex = request.app.state.kb
-        passages = kb.search(text, top_k=5)
+        passages = [] if (persona_answer or off_topic_hit) else kb.search(text, top_k=5)
         history = _recent_history(db, session_id)
         llm_on = config.is_llm_enabled()
 
@@ -1425,20 +2479,14 @@ def send_message_stream(session_id: str, user_id: str,
         ]
         if _prefs:
             _ctx_lines.append("用户长期偏好：" + "、".join(_prefs))
-        _items = db.query(ClothingItem).filter(ClothingItem.user_id == session.user_id).all()
-        if _items:
-            _cats: dict[str, int] = {}
-            for _it in _items:
-                _cats[_it.category] = _cats.get(_it.category, 0) + 1
-            _ctx_lines.append(
-                f"用户衣橱共 {len(_items)} 件：" +
-                "、".join(f"{k}{v}件" for k, v in _cats.items())
-            )
+        _ctx_lines.extend(_closet_inventory_context(_item_dicts(db, session.user_id)))
         _closet_context = "\n".join(_ctx_lines)
 
         user_msg = ChatMessage(
             message_id=utils.gen_id("m"), session_id=session_id,
-            role="user", action="knowledge", content=text,
+            role="user",
+            action="persona" if persona_answer else ("off_topic" if off_topic_hit else "knowledge"),
+            content=text,
         )
         db.add(user_msg)
         db.commit()
@@ -1450,11 +2498,12 @@ def send_message_stream(session_id: str, user_id: str,
         from app.agent import llm as _llm
 
         src_stream = None
-        if llm_on:
+        canned = persona_answer or (_OFF_TOPIC_REPLY if off_topic_hit else None)
+        if not canned and llm_on:
             src_stream = _llm.ask_stream(text, passages, history=history,
                                          context=_closet_context)
 
-        if src_stream is not None:
+        if canned or src_stream is not None:
             answer_source, degraded, reason = "llm", False, ""
         elif passages and not llm_on:
             answer_source, degraded, reason = "passages", True, "no_key"
@@ -1467,11 +2516,15 @@ def send_message_stream(session_id: str, user_id: str,
 
         yield _sse({"type": "meta", "answer_source": answer_source,
                     "degraded": degraded, "degraded_reason": reason,
+                    "preset": bool(canned),
                     "passages": [{"title": p["title"], "doc": p["doc"],
                                   "source": p["source"]} for p in passages[:5]]})
 
         collected: list[str] = []
-        if src_stream is not None:
+        if canned:
+            collected.append(canned)
+            yield _sse({"type": "delta", "text": canned})
+        elif src_stream is not None:
             try:
                 for delta in src_stream:
                     collected.append(delta)
@@ -1499,7 +2552,7 @@ def send_message_stream(session_id: str, user_id: str,
         try:
             db2.add(ChatMessage(
                 message_id=message_id, session_id=session_id, role="agent",
-                action="knowledge", content=content,
+                action="off_topic" if off_topic_hit else "knowledge", content=content,
                 payload={"answer_source": answer_source, "degraded": degraded,
                          "degraded_reason": reason,
                          "passages": passages[:5], "llm_answer": None},

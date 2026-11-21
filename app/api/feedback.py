@@ -86,8 +86,13 @@ def _current_prefs(user: User) -> dict:
 
 @router.get("/effects", response_model=schemas.APIResponse)
 def feedback_effects(user_id: str, request: Request, limit: int = 10,
+                     include_undone: bool = True,
                      db: Session = Depends(get_db)):
-    """2.3 「最近影响我的反馈」：每条反馈改了什么，可逐条撤销。"""
+    """2.3 「最近影响我的反馈」：每条反馈改了什么，可逐条撤销。
+
+    历史记录页传 include_undone=false 只列仍生效的评价；个人资料的证据链
+    默认保留已撤销记录，便于回看当初改了什么。
+    """
     security.assert_owner(user_id, request)
 
     user = db.query(User).filter(User.user_id == user_id).first()
@@ -97,8 +102,10 @@ def feedback_effects(user_id: str, request: Request, limit: int = 10,
     rows = (db.query(FeedbackRecord)
               .filter(FeedbackRecord.user_id == user_id)
               .order_by(FeedbackRecord.created_at.desc())
-              .limit(min(max(1, limit), 50))
               .all())
+    if not include_undone:
+        rows = [r for r in rows if not (r.evidence or {}).get("undone")]
+    rows = rows[:min(max(1, limit), 50)]
 
     return ok(data={
         "preferences": _current_prefs(user),

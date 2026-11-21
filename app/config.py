@@ -16,7 +16,7 @@ def _load_dotenv():
     """极简 .env 加载：把项目根目录 .env 的键值注入进程环境变量。
 
     不引入 python-dotenv 依赖；已在环境中的键不覆盖（系统环境变量优先）。
-    没有这一步时，仅在 .env 里填 ZHIPU_API_KEY 不会被读到，LLM 永远降级。
+    没有这一步时，仅在 .env 里填 DEEPSEEK_API_KEY / ZHIPU_API_KEY 不会被读到，LLM 永远降级。
     """
     p = BASE_DIR / ".env"
     if not p.exists():
@@ -50,16 +50,31 @@ DATABASE_URL = os.environ.get(
     f"sqlite:///{DB_PATH.as_posix()}"
 )
 
-# 智谱 LLM（免费 GLM-4-Flash），用于知识问答生成；为空则走降级逻辑
+# ---------- LLM 供应商配置 ----------
+# 文本对话：DeepSeek（OpenAI 兼容格式，按量计费），为空则走本地规则/检索降级。
+# 官方当前模型名为 deepseek-flash；deepseek-chat / deepseek-reasoner 已弃用。
+DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
+DEEPSEEK_BASE_URL = os.environ.get(
+    "DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-flash")
+
+# 视觉识别：智谱 GLM-4V-Flash（DeepSeek 无可用视觉模型，拍照识别仍走智谱）。
+# 为空则拍照识别降级为本地启发式推断。
 ZHIPU_API_KEY = os.environ.get("ZHIPU_API_KEY", "")
 ZHIPU_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
+ZHIPU_VISION_MODEL = os.environ.get("ZHIPU_VISION_MODEL", "glm-4v-flash")
 
 # 和风天气（免费额度）；为空则天气接口走 mock 数据
 QWEATHER_KEY = os.environ.get("QWEATHER_KEY", "")
 
 
 def is_llm_enabled() -> bool:
-    """是否启用了真实 LLM 调用。没配 key 时知识问答自动降级为纯检索展示。"""
+    """是否启用了文本对话的真实 LLM（DeepSeek）。没配 key 时降级为纯检索/规则展示。"""
+    return bool(DEEPSEEK_API_KEY)
+
+
+def is_vision_enabled() -> bool:
+    """是否启用了视觉识别（智谱 GLM-4V）。与文本 LLM 分开判断，避免把 DeepSeek 误当视觉模型。"""
     return bool(ZHIPU_API_KEY)
 
 
@@ -74,6 +89,9 @@ CHAT_SESSION_QUOTA = int(os.environ.get("CHAT_SESSION_QUOTA", "15"))
 CHAT_COST_RECOMMEND = int(os.environ.get("CHAT_COST_RECOMMEND", "3"))
 CHAT_COST_REJECT = int(os.environ.get("CHAT_COST_REJECT", "1"))
 CHAT_COST_KNOWLEDGE = int(os.environ.get("CHAT_COST_KNOWLEDGE", "0"))
+# 额度总开关：默认关闭（同一会话无限次对话）。设为 "1" 才启用 15 次限制。
+# 关闭时 _quota_cost 恒返回 0，拦截与扣减自动失效；DB/schemas 字段保留兼容，随时可恢复。
+CHAT_QUOTA_ENABLED = os.environ.get("CHAT_QUOTA_ENABLED", "0") == "1"
 
 # ---------- 知识库检索（2.1 混合检索） ----------
 # 同义词扩展 + 双通道 RRF 融合；任一开关置 0 可退回纯 BM25 做对照实验。

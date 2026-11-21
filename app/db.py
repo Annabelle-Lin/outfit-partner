@@ -194,6 +194,26 @@ class OutfitRecord(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class FashionInspo(Base):
+    """时尚资讯灵感图（Vogue / ELLE RSS 采集，月度更新）。
+
+    只存 RSS 自带的标题、链接、图片本地路径与从条目提取的中文标签，
+    不转载正文。图片下载到 data/uploads/inspo/，由 /uploads 静态挂载对外提供。
+    """
+    __tablename__ = "fashion_inspo"
+
+    inspo_id = Column(String, primary_key=True, index=True)
+    source = Column(String, default="")       # vogue / elle
+    title = Column(String, default="")
+    link = Column(String, default="")
+    image_path = Column(String, default="")   # /uploads/inspo/xxx.jpg
+    image_url = Column(String, default="")    # 原始 CDN 地址，用于去重
+    summary = Column(String, default="")      # RSS description 摘要
+    tags = Column(JSON, default=list)         # 中文标签：颜色/风格/单品
+    batch = Column(String, default="")        # 采集批次 YYYY-MM
+    fetched_at = Column(DateTime, default=datetime.utcnow)
+
+
 def _ensure_user_columns():
     """轻量迁移：给已存在的 users 表补齐新增列（SQLite 不支持 ADD COLUMN IF NOT EXISTS）。"""
     from sqlalchemy import inspect, text
@@ -257,6 +277,7 @@ def _ensure_columns() -> None:
                 conn.commit()
     except Exception:
         pass
+    
 
 
 _ensure_columns()
