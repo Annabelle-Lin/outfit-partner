@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.agent.engine import RecommendEngine, rule_repo
 from app.agent.kb import KnowledgeIndex
-from app.api import chat, clothing, feedback, purchase, upload, user, weather
+from app.api import chat, clothing, fashion, feedback, purchase, upload, user, weather
 from app.db import init_db
 from app.security import AuthMiddleware
 
@@ -61,6 +61,7 @@ app.include_router(chat.router, prefix="/api/v1/chat", tags=["对话 Agent（核
 app.include_router(feedback.router, prefix="/api/v1/feedback", tags=["反馈模块"])
 app.include_router(purchase.router, prefix="/api/v1/purchase", tags=["购前评估模块"])
 app.include_router(upload.router, prefix="/api/v1/upload", tags=["图片上传"])
+app.include_router(fashion.router, prefix="/api/v1/fashion", tags=["时尚资讯"])
 
 
 @app.get("/health", tags=["运维"])

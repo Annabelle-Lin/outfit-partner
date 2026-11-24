@@ -57,16 +57,12 @@ class User(Base):
     gender = Column(String, default="")
     styles = Column(JSON, default=list)
 
-    # 长期偏好 1-10（兼容旧接口，保留不动）
+    # 长期偏好 1-10
     pref_color = Column(Integer, default=5)
     pref_style = Column(Integer, default=5)
     pref_comfort = Column(Integer, default=5)
     pref_occasion = Column(Integer, default=5)
     pref_fabric = Column(Integer, default=5)
-
-    # 动态画像（2026-11-24）：属性值权重表，支持可增可减 + 时间衰减。
-    # 结构：{"color": {"蓝": {"w": 3, "last": "2026-11-24T..."}, ...}, ...}
-    profile_prefs = Column(JSON, default=dict)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -232,7 +228,6 @@ def _ensure_user_columns():
         "styles": "JSON",
         "username": "VARCHAR",
         "password_hash": "VARCHAR",
-        "profile_prefs": "JSON",
     }
     with engine.begin() as conn:
         for name, coltype in wanted.items():

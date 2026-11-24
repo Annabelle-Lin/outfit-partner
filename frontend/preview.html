@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>今遂 · 一键预览</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+    font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:#5B4C96;
+    background:radial-gradient(900px 520px at 18% 12%,#FDFBFF 0%,rgba(253,251,255,0) 70%),
+               radial-gradient(760px 600px at 88% 22%,#DCE6FF 0%,rgba(220,230,255,0) 72%),
+               linear-gradient(168deg,#F1ECFF 0%,#ECE7FC 48%,#E4EEFF 100%);}
+  .card{width:min(420px,88vw);padding:38px 34px 32px;text-align:center;
+    background:rgba(255,255,255,.72);backdrop-filter:blur(18px);
+    border:1px solid rgba(255,255,255,.92);border-radius:32px;
+    box-shadow:0 24px 60px rgba(110,94,210,.16)}
+  .mascot{width:150px;height:170px;object-fit:contain;display:block;margin:0 auto 6px;
+    filter:drop-shadow(0 12px 20px rgba(110,94,210,.18));animation:float 2.6s ease-in-out infinite}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+  h1{margin:2px 0 6px;font-size:30px;letter-spacing:4px;font-weight:800}
+  .sub{margin:0;font-size:15px;color:#7A6CB0}
+  .status{margin-top:22px;font-size:13px;color:#8B79F0;min-height:20px}
+  .dots::after{content:'';animation:dots 1.2s steps(4,end) infinite}
+  @keyframes dots{0%{content:''}25%{content:'·'}50%{content:'··'}75%{content:'···'}100%{content:''}}
+  .err{margin-top:18px;padding:14px 16px;border-radius:18px;background:rgba(255,241,241,.9);
+    border:1px solid rgba(230,120,120,.28);color:#a04545;font-size:13px;line-height:1.7;text-align:left;display:none}
+  code{background:rgba(120,100,200,.10);padding:2px 6px;border-radius:6px;font-size:12px}
+  .btn{display:none;margin:16px auto 0;padding:11px 22px;border:0;border-radius:999px;
+    background:linear-gradient(120deg,#8B79F0,#6F5FDC);color:#fff;font-size:14px;
+    font-weight:600;cursor:pointer;box-shadow:0 8px 20px rgba(110,94,210,.28)}
+</style>
+</head>
+<body>
+  <div class="card">
+    <img class="mascot" src="brand/mascot-hero-cut.png" alt="遂遂" />
+    <h1>今遂</h1>
+    <p class="sub">哇，好合适！你的专属穿搭小助手</p>
+    <div class="status dots" id="status">正在带你进入</div>
+    <div class="err" id="err"></div>
+    <button class="btn" id="manual" onclick="location.href='/'">仍要打开首页</button>
+  </div>
+
+<script>
+(function(){
+  var status = document.getElementById('status');
+  var err = document.getElementById('err');
+  var btn = document.getElementById('manual');
+
+  function fail(msg){
+    status.classList.remove('dots');
+    status.textContent = '自动进入失败';
+    err.style.display = 'block';
+    err.innerHTML = msg;
+    btn.style.display = 'block';
+  }
+
+  // 已有有效登录态就直接进首页，避免重复请求
+  if (localStorage.getItem('wardrobe_token') && localStorage.getItem('wardrobe_uid')){
+    location.replace('/');
+    return;
+  }
+
+  fetch('/api/v1/user/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'demo', password: 'demo123' })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(j){
+    if (j && j.code === 0 && j.data && j.data.token){
+      localStorage.setItem('wardrobe_token', j.data.token);
+      localStorage.setItem('wardrobe_uid', j.data.user.user_id);
+      status.textContent = '进啦～';
+      location.replace('/');
+    } else {
+      fail('演示账号不存在或密码不对：<b>' + (j && j.msg ? j.msg : '未知错误') + '</b><br>' +
+           '请在项目根目录先执行一次 <code>python seed_ui_demo.py</code> 灌演示数据，再刷新本页。');
+    }
+  })
+  .catch(function(e){
+    fail('连不上后端：' + (e && e.message ? e.message : e) + '<br>' +
+         '请确认已执行 <code>python -m uvicorn app.main:app --port 8300</code>，' +
+         '并且本页是通过 <code>http://127.0.0.1:8300/preview.html</code> 打开的（不要双击本地文件）。');
+  });
+})();
+</script>
+</body>
+</html>
