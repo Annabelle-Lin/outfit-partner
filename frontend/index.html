@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>今遂 · 智能穿搭</title>
-<link rel="icon" type="image/png" href="logo-icon.png?v=2" />
+<link rel="icon" type="image/png" href="brand/v4/app-icon-v2.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Noto+Serif+SC:wght@500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -205,7 +205,7 @@ h1.page-title{font-family:var(--serif);font-size:34px;font-weight:600;letter-spa
 /* ============ 视图：登录 ============ */
 .auth-wrap{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:30px}
 .auth-card{width:100%;max-width:420px;background:var(--card);border:1px solid var(--line-soft);border-radius:28px;box-shadow:var(--shadow-lg);padding:40px 38px;position:relative;overflow:hidden}
-.auth-card::before{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:240px;height:210px;background:url('logo-icon.png?v=2') center/contain no-repeat;opacity:.08;pointer-events:none}
+.auth-card::before{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:240px;height:210px;background:url('brand/app-icon.png') center/contain no-repeat;opacity:.08;pointer-events:none}
 .auth-logo{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,var(--clay),var(--clay-deep));display:grid;place-items:center;color:#fff;margin-bottom:20px;box-shadow:0 10px 24px rgba(124,108,240,.4)}
 .auth-logo svg{width:28px;height:28px}
 .auth-title{font-family:var(--serif);font-size:28px;font-weight:600}
@@ -542,6 +542,1150 @@ body.gate .topbar{display:none}
 .input,.select,.textarea{border-radius:14px}
 .input:hover,.select:hover,.textarea:hover{border-color:rgba(124,108,240,.38)}
 .section-label{margin:38px 0 16px}
+/* ===== 今遂 UI v3 覆盖层（按 6 页参考设计稿重做） ===== */
+/* ============================================================
+   今遂 UI v3 · 按 6 页参考设计稿重做视觉骨架
+   目标：淡紫雾面整屏 / 磨砂半透明侧栏 / 全局搜索通栏 /
+        大吉祥物 Hero + 手写体 slogan / 云朵星星 / 透明天气卡 /
+        超大圆角磨砂白卡 / 每页同一只吉祥物
+   纯 CSS + 纯装饰 DOM，不删除、不改写任何功能性 id / onclick / JS
+   ============================================================ */
+:root{
+  --paper:#EFEBFC;
+  --paper-2:#F4F0FE;
+  --paper-3:#E4DEFA;
+  --card:rgba(255,255,255,.86);
+  --card-2:#F6F2FF;
+  --ink:#3B3560;
+  --ink-2:#6B6491;
+  --ink-3:#9B95BC;
+  --clay:#8B79F0;
+  --clay-deep:#6F5FDC;
+  --clay-soft:#EDE7FF;
+  --sage:#B8E986;
+  --sage-soft:#EEF8E4;
+  --blush:#FFB6C8;
+  --gold:#FFD66B;
+  --line:#E7E1FA;
+  --line-soft:#F1ECFC;
+  --ok:#7CB84F;
+  --warn:#E0A63A;
+  --bad:#E0655E;
+  --shadow-sm:0 6px 20px rgba(110,94,210,.07);
+  --shadow-md:0 14px 36px rgba(110,94,210,.13);
+  --shadow-lg:0 26px 64px rgba(110,94,210,.20);
+  --r-sm:16px;
+  --r-md:26px;
+  --r-lg:34px;
+  --serif:"Noto Serif SC","Songti SC",serif;
+  --sans:"Noto Sans SC","Manrope",-apple-system,sans-serif;
+  --hand:"STXingkai","华文行楷","KaiTi","楷体","STKaiti",cursive;
+}
+
+/* ---------- 整屏淡紫雾面：六个页面共用同一张底 ---------- */
+body{background:#E9E4FA}
+.app{
+  grid-template-columns:198px 1fr;
+  position:relative;
+  background:
+    radial-gradient(1000px 520px at 84% -8%,rgba(160,150,255,.42),transparent 70%),
+    radial-gradient(820px 460px at 10% 2%,rgba(198,214,255,.55),transparent 72%),
+    radial-gradient(700px 520px at 96% 88%,rgba(214,198,255,.28),transparent 74%),
+    linear-gradient(180deg,#E3DCFA 0%,#EBE6FC 24%,#F2EEFC 52%,#F7F4FD 78%,#FBF9FF 100%);
+}
+/* 云朵与光斑：全站氛围层 */
+.app::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:520px;
+  pointer-events:none;z-index:0;opacity:.72;
+  background-image:
+    radial-gradient(circle at 12% 22%,rgba(255,255,255,.92) 0 30px,transparent 32px),
+    radial-gradient(circle at 17% 19%,rgba(255,255,255,.78) 0 40px,transparent 42px),
+    radial-gradient(circle at 24% 23%,rgba(255,255,255,.86) 0 26px,transparent 28px),
+    radial-gradient(circle at 91% 12%,rgba(255,255,255,.80) 0 30px,transparent 32px),
+    radial-gradient(circle at 95% 16%,rgba(255,255,255,.66) 0 22px,transparent 24px),
+    radial-gradient(circle at 87% 8%,rgba(255,214,107,.72) 0 9px,transparent 11px);
+}
+.main{position:relative;z-index:1;background:transparent}
+.main-inner{max-width:1260px;padding:24px 40px 110px}
+
+/* ---------- 顶部通栏：全局搜索 + 通知 + 吉祥物头像 ---------- */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:30;
+  background:rgba(255,255,255,.40);backdrop-filter:blur(18px);
+  border-bottom:1px solid rgba(255,255,255,.62);
+  padding:11px 36px;
+}
+.topbar > .brand-mark,.topbar > .ttl{display:none}
+.js-search{
+  width:min(430px,44vw);height:38px;border-radius:99px;
+  background:rgba(255,255,255,.74);border:1px solid rgba(255,255,255,.92);
+  display:flex;align-items:center;gap:10px;padding:0 16px;
+  color:#9189BC;font-size:12px;letter-spacing:.3px;
+  box-shadow:0 6px 18px rgba(110,94,210,.07);margin:0 auto;
+}
+.js-search svg{width:15px;height:15px;flex:none;opacity:.8}
+.js-search kbd{
+  margin-left:auto;font-family:var(--sans);font-size:10px;color:#A9A2CB;
+  background:rgba(238,233,255,.9);border-radius:6px;padding:3px 7px;white-space:nowrap;
+}
+.js-top-right{display:flex;align-items:center;gap:14px;flex:none}
+.js-bell{
+  width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(255,255,255,.62);border:1px solid rgba(255,255,255,.85);
+  color:#6F5FDC;position:relative;
+}
+.js-bell svg{width:17px;height:17px}
+.js-bell::after{
+  content:"";position:absolute;top:7px;right:8px;width:6px;height:6px;
+  border-radius:50%;background:#FF9AA8;border:1.5px solid #fff;
+}
+.js-top-avatar{
+  width:36px;height:36px;border-radius:50%;object-fit:cover;
+  background:rgba(255,255,255,.8);border:2px solid rgba(255,255,255,.95);
+  box-shadow:0 5px 14px rgba(110,94,210,.16);
+}
+body.gate .topbar{display:none}
+
+/* ---------- 侧栏：半透明磨砂薰衣草紫 ---------- */
+.sidebar{
+  background:linear-gradient(176deg,rgba(146,132,238,.32) 0%,rgba(126,110,228,.44) 52%,rgba(108,92,210,.50) 100%);
+  backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+  color:#fff;border-radius:0 30px 30px 0;
+  box-shadow:10px 0 34px rgba(101,84,205,.12);
+  border-right:1px solid rgba(255,255,255,.42);
+  padding:26px 14px 20px;
+}
+.sidebar::before{
+  content:"";position:absolute;top:-150px;right:-130px;width:330px;height:330px;
+  background:radial-gradient(circle,rgba(200,220,255,.42),transparent 66%);filter:blur(3px);
+}
+.sidebar::after{
+  content:"";position:absolute;right:14px;bottom:92px;width:88px;height:88px;
+  background-image:
+    radial-gradient(circle at 20% 30%,rgba(255,214,107,.85) 0 4px,transparent 5px),
+    radial-gradient(circle at 78% 22%,rgba(255,255,255,.8) 0 3px,transparent 4px),
+    radial-gradient(circle at 62% 74%,rgba(255,214,107,.65) 0 3px,transparent 4px);
+  pointer-events:none;opacity:.8;
+}
+.brand{flex-direction:column;gap:8px;margin-bottom:26px;text-align:center}
+.brand > div:last-child{display:flex;flex-direction:column;align-items:center}
+.brand-mark{
+  width:52px;height:52px;border-radius:16px;background:transparent;
+  box-shadow:0 8px 20px rgba(110,94,210,.18);
+}
+.brand-mark img{width:100%;height:100%;object-fit:contain;border-radius:16px}
+.brand-name{font-family:var(--hand);font-size:27px;color:#fff;letter-spacing:3px;line-height:1.1}
+.brand-sub{color:rgba(255,255,255,.72);letter-spacing:4px;font-size:9px;margin-top:4px}
+.nav-label{color:rgba(255,255,255,.62);font-size:9px;letter-spacing:2px;padding:12px 10px 6px}
+.nav-item{
+  color:rgba(255,255,255,.86);border-radius:14px;font-size:13px;
+  padding:10px 12px;gap:10px;
+}
+.nav-item svg{width:17px;height:17px}
+.nav-item:hover{background:rgba(255,255,255,.16);color:#fff}
+.nav-item.active{
+  background:rgba(255,255,255,.94)!important;border-color:rgba(255,255,255,.9)!important;
+  color:#6F5FDC!important;box-shadow:0 8px 20px rgba(63,45,150,.16);
+}
+.nav-item.active svg{color:#6F5FDC!important}
+.nav-item .badge{background:#FFD66B;color:#3B3560}
+.user-chip{background:rgba(255,255,255,.20);border-radius:16px;padding:9px}
+.user-chip:hover{background:rgba(255,255,255,.30)}
+.user-chip .name{font-size:12px}
+.user-chip .meta{color:rgba(255,255,255,.76);font-size:10px}
+.avatar{background:#fff;border-radius:12px;width:34px;height:34px}
+.avatar img{width:100%;height:100%;object-fit:contain}
+
+/* ---------- 右下角常驻吉祥物：六页统一 ---------- */
+.main::after{
+  content:"";position:fixed;right:14px;bottom:14px;
+  width:112px;height:136px;pointer-events:none;z-index:22;opacity:.72;
+  background:url('brand/mascot-star-cut.png') center/contain no-repeat;
+  filter:drop-shadow(0 8px 16px rgba(110,94,210,.16));
+}
+.main:has(#view-wardrobe.active)::after{background-image:url('brand/mascot-bag-cut.png')}
+.main:has(#view-chat.active)::after{background-image:url('brand/mascot-laptop-cut.png')}
+.main:has(#view-eval.active)::after{background-image:url('brand/mascot-camera-cut.png')}
+.main:has(#view-history.active)::after{background-image:url('brand/mascot-go-cut.png')}
+.main:has(#view-me.active)::after{background-image:url('brand/mascot-front-cut.png')}
+body.gate .main::after{opacity:.34}
+/* 旧水印层停用（素材已换透明版，统一由右上角/右下角装饰承担） */
+.view.active::before{display:none}
+
+/* ---------- 文字层级 ---------- */
+.eyebrow{color:var(--clay-deep);letter-spacing:2.4px;font-size:10px}
+h1.page-title{font-size:32px;color:var(--ink);letter-spacing:.4px}
+.page-head{margin-bottom:22px}
+.lead{color:var(--ink-2);font-size:13px}
+.title-count{background:var(--clay-soft);border-color:rgba(139,121,240,.25);color:var(--clay-deep)}
+.section-label{font-size:18px;margin:34px 0 16px;color:var(--ink)}
+.section-label::before{width:5px;height:18px;border-radius:3px;background:linear-gradient(180deg,#8B79F0,#BDE1FF)}
+
+/* ---------- 通用卡片：超大圆角 + 磨砂白 ---------- */
+.card,.profile-card,.auth-card,.modal,.result-block,.pref-card,.me-head,.hist-item{
+  background:rgba(255,255,255,.84);
+  border:1px solid rgba(255,255,255,.92);
+  border-radius:var(--r-lg);
+  box-shadow:0 12px 32px rgba(110,94,210,.08);
+  backdrop-filter:blur(12px);
+}
+.btn{border-radius:16px}
+.btn-primary{
+  background:linear-gradient(135deg,#9A88F5,#6F5FDC);
+  box-shadow:0 10px 24px rgba(111,95,220,.26);
+}
+.btn-primary:hover{box-shadow:0 14px 32px rgba(111,95,220,.36)}
+.btn-ghost,.btn-soft{background:rgba(255,255,255,.80);border-color:rgba(255,255,255,.9)}
+.btn-ghost:hover,.btn-soft:hover{border-color:var(--clay);color:var(--clay-deep);box-shadow:var(--shadow-sm)}
+.chip{background:rgba(255,255,255,.88);border-radius:99px}
+.chip:hover{border-color:var(--clay);color:var(--clay-deep)}
+.chip.on,.seg-option.on,.cat-card.on,.sub-card.on{
+  background:linear-gradient(135deg,#9A88F5,#6F5FDC)!important;
+  color:#fff!important;border-color:transparent!important;
+  box-shadow:0 8px 20px rgba(111,95,220,.24);
+}
+.tag{background:var(--clay-soft);border-color:rgba(139,121,240,.16);color:var(--clay-deep)}
+.input,.select,.textarea{background:rgba(255,255,255,.92);border-color:var(--line);border-radius:16px}
+.input:focus,.select:focus,.textarea:focus{border-color:var(--clay);box-shadow:0 0 0 4px rgba(139,121,240,.14)}
+.field label{color:var(--ink-2)}
+.gupload{border-color:rgba(139,121,240,.4);background:var(--card-2);border-radius:var(--r-sm)}
+:focus-visible{outline:3px solid rgba(139,121,240,.5);outline-offset:3px;border-radius:8px}
+.btn:active,.chip:active,.seg-option:active{transform:translateY(1px) scale(.985)}
+
+/* ============================================================
+   首页 Hero：大吉祥物 + 手写体 + 云朵星星 + 城市剪影
+   ============================================================ */
+#view-home{position:relative}
+.js-hero{
+  position:relative;height:300px;margin:2px 0 22px;
+  border-radius:var(--r-lg);overflow:hidden;z-index:1;
+  background:
+    radial-gradient(560px 300px at 20% 18%,rgba(255,255,255,.58),transparent 70%),
+    radial-gradient(520px 280px at 92% 6%,rgba(255,255,255,.50),transparent 72%),
+    linear-gradient(112deg,rgba(210,199,255,.82) 0%,rgba(228,222,255,.70) 40%,rgba(238,240,255,.60) 72%,rgba(255,255,255,.44) 100%);
+  border:1px solid rgba(255,255,255,.80);
+  box-shadow:0 20px 46px rgba(120,104,220,.10);
+}
+/* 行星光环 */
+.js-ring{
+  position:absolute;left:34px;top:34px;width:300px;height:150px;
+  border:2px solid rgba(255,255,255,.62);border-radius:50%;
+  transform:rotate(-22deg);pointer-events:none;
+}
+.js-ring::after{
+  content:"✦";position:absolute;right:6px;top:-14px;
+  color:#FFD66B;font-size:24px;text-shadow:0 2px 8px rgba(255,200,80,.5);
+}
+/* 大吉祥物 */
+.js-hero-mascot{
+  position:absolute;left:8px;bottom:-18px;width:262px;z-index:3;pointer-events:none;
+  filter:drop-shadow(0 14px 22px rgba(110,94,210,.18));
+}
+.js-hero-mascot img{width:100%;display:block}
+/* 手写体 slogan */
+.js-hero-copy{position:absolute;left:278px;top:62px;z-index:4}
+.js-hero-title{
+  font-family:var(--hand);font-size:82px;line-height:1;font-weight:700;
+  color:#4B3F86;letter-spacing:6px;transform:rotate(-6deg);
+  text-shadow:0 6px 16px rgba(120,104,220,.18);
+}
+.js-hero-sub{
+  font-family:var(--hand);font-size:31px;font-weight:700;color:#5B4C96;
+  margin:10px 0 0 74px;transform:rotate(-4deg);letter-spacing:2px;
+}
+.js-hero-sub i{font-style:normal;color:#FF8FA8}
+.js-hero-tag{
+  margin:16px 0 0 78px;font-size:11px;letter-spacing:3px;
+  color:rgba(91,76,150,.72);text-transform:uppercase;
+}
+/* 星星 / 云朵 / 城市剪影 */
+.js-spark{position:absolute;color:#FFD66B;font-size:20px;pointer-events:none;text-shadow:0 2px 8px rgba(255,200,80,.45)}
+.js-cloud{position:absolute;pointer-events:none;opacity:.82}
+.js-cloud span{position:absolute;display:block;background:rgba(255,255,255,.92);border-radius:50%}
+.js-city{position:absolute;left:0;right:0;bottom:0;width:100%;height:88px;opacity:.30;pointer-events:none}
+/* 今日穿搭大卡 + 右侧「衣橱好搭档」卡：并排两列（对齐参考图） */
+.js-look-row{display:grid;grid-template-columns:minmax(0,1fr) 236px;gap:16px;align-items:stretch}
+.js-buddy{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:8px;padding:18px 16px;text-align:center;
+  background:rgba(255,255,255,.68);backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,.90);border-radius:var(--r-lg);
+  box-shadow:0 14px 36px rgba(110,94,210,.09);
+}
+.js-buddy img{width:100%;max-width:168px;height:180px;object-fit:contain;
+  filter:drop-shadow(0 10px 18px rgba(110,94,210,.18))}
+.js-buddy .t{font-family:var(--hand);font-size:23px;font-weight:700;line-height:1.35;color:#5B4C96;transform:rotate(-3deg)}
+.js-buddy .t small{display:block;font-size:15px;color:#7A6CB0;margin-top:6px;transform:rotate(2deg)}
+
+/* 天气卡：浮在 Hero 右上，透明磨砂小卡 */
+#view-home .weather{
+  position:absolute;top:26px;right:32px;width:246px;z-index:6;
+  background:rgba(255,255,255,.40);backdrop-filter:blur(16px);
+  border:1px solid rgba(255,255,255,.88);border-radius:26px;
+  padding:16px 20px 14px;color:#4A4278;
+  box-shadow:0 14px 34px rgba(110,94,210,.10);overflow:visible;
+}
+#view-home .weather::after{display:none}
+#view-home .weather-top{display:block}
+#view-home .weather-city{font-size:12px;color:#6C6299}
+#view-home .weather-cond{font-size:11px;color:#7A71A8}
+#view-home .weather-now{margin-top:4px}
+#view-home .weather-temp{font-size:44px;line-height:1.05;color:#4A4278;text-shadow:none}
+#view-home .weather-range{font-size:10px;color:#7A71A8}
+#view-home .weather-icon{color:#8B79F0}
+#view-home .weather-stats{
+  display:grid;grid-template-columns:1fr 1fr;gap:3px 8px;
+  margin-top:9px;padding-top:8px;border-top:1px solid rgba(255,255,255,.70);
+}
+#view-home .wstat{font-size:9.5px;color:#7A71A8}
+#view-home .wstat svg{width:11px;height:11px;opacity:.7}
+
+/* Hero 下方：标题行压低，给内容让位 */
+#view-home .page-head{margin-bottom:16px}
+#view-home .page-head h1.page-title{font-size:22px}
+#view-home .page-head .lead{font-size:12px}
+#view-home .page-head .btn{padding:8px 14px;font-size:12px}
+
+/* 今日穿搭大卡：三套方案收进同一张磨砂白卡 */
+.js-look-panel{
+  background:rgba(255,255,255,.80);backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,.94);border-radius:var(--r-lg);
+  box-shadow:0 16px 40px rgba(110,94,210,.09);
+  padding:22px 24px 26px;margin-top:6px;
+}
+.js-look-head{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.js-look-title{font-size:17px;font-weight:700;color:var(--ink)}
+.js-look-title b{color:#8B79F0;font-size:18px;margin-right:4px}
+.js-look-date{font-size:10px;letter-spacing:2px;color:#9B95BC;text-transform:uppercase}
+.js-look-more{margin-left:auto;font-size:12px;color:var(--clay-deep);cursor:pointer}
+.js-look-panel > .section-label{font-size:14px;margin:4px 0 14px;color:var(--ink-2)}
+.js-look-panel > .section-label::before{height:14px;width:4px}
+.js-look-panel .outfit-grid{gap:16px}
+.js-look-panel .outfit-card{
+  background:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.94);
+  border-radius:22px;padding:16px;box-shadow:0 6px 18px rgba(110,94,210,.06);
+}
+.js-look-panel .outfit-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-md);border-color:rgba(139,121,240,.28)}
+.outfit-rank{color:var(--clay-deep)}
+.gitem .thumb{
+  width:58px;height:58px;border-radius:16px;background-color:#fff;
+  border:1px solid var(--line-soft);box-shadow:0 4px 14px rgba(110,94,210,.09);
+  background-size:contain!important;background-repeat:no-repeat!important;background-position:center!important;
+}
+.outfit-reason{background:rgba(246,242,255,.9);border-radius:14px}
+.rate-btn:hover{border-color:var(--clay);color:var(--clay-deep);background:var(--clay-soft)}
+.entry-grid{gap:16px}
+.entry-card{padding:20px}
+.entry-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-md);border-color:rgba(139,121,240,.28)}
+.entry-ico{border-radius:16px}
+
+/* ---------- 电子衣橱：衣物图当主角 ---------- */
+.cat-grid{gap:16px}
+.cat-card{padding:18px;border-radius:var(--r-md)}
+.cat-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-md)}
+.cat-card .c-ico{width:50px;height:50px;border-radius:16px;background:linear-gradient(150deg,#EDE7FF,#E1EEFF)}
+.sub-card{border-radius:16px}
+.filter-bar{margin:24px 0 16px}
+.garment-grid{gap:18px}
+.garment-card{border-radius:var(--r-md);transition:transform .25s,box-shadow .25s,border-color .25s}
+.garment-card:hover{transform:translateY(-5px);box-shadow:var(--shadow-md)}
+.garment-img{height:190px;background:linear-gradient(160deg,#FBFAFF,#EFEAFC);border-bottom:1px solid var(--line-soft)}
+.garment-img .g-photo{
+  inset:12px;width:calc(100% - 24px);height:calc(100% - 24px);
+  object-fit:contain;background:#fff;border-radius:16px;
+  box-shadow:0 6px 18px rgba(110,94,210,.09);transition:transform .3s;
+}
+.garment-card:hover .g-photo{transform:scale(1.045)}
+.garment-img .g-cat{background:rgba(111,95,220,.82);color:#fff;backdrop-filter:blur(6px)}
+.gfoot-btn{border-radius:11px}
+
+/* ---------- 对话 / 评估 / 历史 / 个人资料 ---------- */
+.chat-shell{height:calc(100vh - 200px)}
+.msg-bubble{background:rgba(255,255,255,.90);border-radius:22px;box-shadow:var(--shadow-sm)}
+.msg.user .msg-bubble{background:linear-gradient(135deg,#9A88F5,#6F5FDC);color:#fff;border-color:transparent}
+.msg-ava{border-radius:14px}
+.msg.ai .msg-ava{background:linear-gradient(150deg,#EDE7FF,#E1EEFF)}
+.chat-outfit-card{background:var(--card-2);border-radius:18px}
+.send-btn{background:linear-gradient(135deg,#9A88F5,#6F5FDC);border-radius:18px}
+.upload-box{background:rgba(255,255,255,.80);border:2px dashed rgba(139,121,240,.42);border-radius:var(--r-md)}
+.match-pct{color:var(--clay-deep)}
+.hist-item:hover{transform:translateX(4px);box-shadow:var(--shadow-md)}
+.me-avatar{background:linear-gradient(150deg,#EDE7FF,#E1EEFF);border-radius:24px}
+.state-empty{background:linear-gradient(160deg,#FBFAFF,#F1ECFC);border:1px dashed rgba(139,121,240,.36);border-radius:var(--r-md)}
+.state-empty::after{background:url('brand/mascot-front-cut.png') center/contain no-repeat;opacity:.32;mix-blend-mode:normal}
+.toast{background:linear-gradient(135deg,#6F5FDC,#8C7BEE);border-radius:99px}
+.modal-back{background:rgba(58,48,108,.34);backdrop-filter:blur(6px)}
+
+/* ---------- 登录 / 引导页 ---------- */
+body.gate .app{
+  background:
+    radial-gradient(760px 520px at 16% 8%,rgba(198,214,255,.62),transparent 70%),
+    radial-gradient(820px 580px at 86% 16%,rgba(167,181,255,.60),transparent 70%),
+    linear-gradient(160deg,#E6DFFA,#F5F1FD 62%,#FBF9FF);
+}
+.auth-card,.profile-card{border-radius:var(--r-lg);padding:34px 38px 40px}
+.auth-card::before{background:url('brand/app-icon.png') center/contain no-repeat;opacity:.05;width:200px;height:200px}
+.auth-toggle{background:var(--clay-soft);border-radius:16px}
+.auth-toggle button.on{background:#fff;color:var(--clay-deep)}
+.mascot-hero{width:150px;filter:drop-shadow(0 16px 30px rgba(124,108,240,.20))}
+.mascot-side{width:130px;filter:drop-shadow(0 14px 28px rgba(124,108,240,.18))}
+.seg-option{border-radius:16px}
+.bottomnav{background:rgba(255,255,255,.88);border-top:1px solid rgba(255,255,255,.8)}
+::-webkit-scrollbar-thumb{background:#D6CEF5;border:2px solid var(--paper)}
+
+/* ---------- 响应式 ---------- */
+@media (max-width:1100px){
+  .js-hero-copy{left:250px}
+  .js-hero-mascot{width:230px}
+  .js-hero-title{font-size:68px}
+  .js-hero-sub{font-size:26px;margin-left:50px}
+  #view-home .weather{width:220px;right:22px}
+  .js-buddy{width:220px;right:22px}
+}
+@media (max-width:900px){
+  .main-inner{padding:20px 22px 120px}
+  .js-look-row{grid-template-columns:1fr}
+  .js-hero{height:250px}
+  .js-hero-mascot{width:170px;bottom:-10px}
+  .js-hero-copy{left:180px;top:44px}
+  .js-hero-title{font-size:50px}
+  .js-hero-sub{font-size:21px;margin-left:30px}
+  .js-hero-tag{display:none}
+  #view-home .weather{position:static;width:auto;margin:0 0 16px}
+  .js-buddy{display:none}
+  .sidebar{border-radius:0}
+  .js-search{width:min(360px,52vw)}
+}
+@media (max-width:768px){
+  .outfit-grid,.entry-grid,.cat-grid{grid-template-columns:repeat(2,1fr);gap:14px}
+  .garment-grid{grid-template-columns:repeat(2,1fr);gap:14px}
+  .garment-img{height:170px}
+  .js-hero{height:210px}
+  .js-hero-mascot{width:140px}
+  .js-hero-copy{left:146px;top:38px}
+  .js-hero-title{font-size:40px}
+  .js-hero-sub{font-size:17px;margin-left:16px}
+  h1.page-title{font-size:27px}
+  .main::after{width:84px;height:100px;opacity:.5}
+}
+@media (max-width:560px){
+  .js-hero{height:168px;border-radius:24px}
+  .js-hero-mascot{width:108px;bottom:-6px}
+  .js-hero-copy{left:112px;top:30px}
+  .js-hero-title{font-size:30px;letter-spacing:2px}
+  .js-hero-sub{font-size:13px;margin:6px 0 0 10px}
+  .js-search{width:auto;flex:1;margin:0 12px}
+  .js-search span,.js-search kbd{display:none}
+  .topbar{padding:9px 14px}
+  .main-inner{padding:16px 14px 120px}
+  .js-look-panel{padding:16px 14px 20px}
+  .js-look-head{gap:8px}
+  .js-look-date{display:none}
+}
+@media (max-width:390px){
+  .outfit-grid,.entry-grid,.garment-grid{grid-template-columns:1fr}
+  .cat-grid{grid-template-columns:repeat(2,1fr);gap:12px}
+  .mascot-hero{width:120px}
+  .mascot-side{width:100px}
+  .auth-card{padding:28px 20px 32px}
+  .main::after{display:none}
+}
+
+/* ---------- 后端状态徽标：淡化为顶栏小胶囊，不再压住铃铛/头像 ---------- */
+#backend-badge{
+  top:13px!important;right:104px!important;z-index:31!important;
+  max-width:236px!important;overflow:hidden!important;text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  background:rgba(255,255,255,.78)!important;color:#6F5FDC!important;
+  border:1px solid rgba(255,255,255,.94)!important;
+  box-shadow:0 6px 18px rgba(110,94,210,.10)!important;
+  font-size:10px!important;font-weight:600!important;padding:6px 14px!important;
+}
+@media (max-width:768px){#backend-badge{display:none!important}}
+
+/* ---- v3 收尾：陪伴卡改矮卡 + 首页去掉重叠水印 ---- */
+.js-look-row{align-items:start}
+.js-buddy{height:268px}
+.main:has(#view-home.active)::after{display:none}
+
+
+/* ===== 今遂 UI v4 覆盖层（按单张首页设计稿 1:1 重排） ===== */
+
+/* ============================================================
+   今遂 UI v4 · 按用户新给的单张首页设计稿 1:1 重排
+   素材全部从该设计稿裁切（brand/v4/），只加装饰 DOM + 覆盖样式
+   不删除 / 不改写任何功能性 id、onclick、JS 函数、API 调用
+   ============================================================ */
+
+/* ---------- 整屏底色更贴近参考图：上紫下奶白，右上浅蓝 ---------- */
+.app{
+  background:
+    radial-gradient(900px 460px at 88% -6%,rgba(178,196,255,.62),transparent 72%),
+    radial-gradient(820px 420px at 6% 0%,rgba(150,132,232,.40),transparent 70%),
+    radial-gradient(760px 520px at 98% 92%,rgba(206,192,255,.30),transparent 74%),
+    linear-gradient(178deg,#DCD2F7 0%,#E9E3FB 26%,#F1EDFC 54%,#F8F5FE 80%,#FCFAFF 100%);
+}
+.sidebar{
+  background:linear-gradient(178deg,rgba(124,108,214,.52) 0%,rgba(126,110,226,.44) 48%,rgba(120,104,214,.40) 100%);
+}
+/* 顶栏头像换成设计稿里的小遂遂 */
+.js-top-avatar{background:transparent;border-color:rgba(255,255,255,.7)}
+
+/* ---------- Hero：直接用设计稿抠出的大吉祥物 + 手写体 ---------- */
+.js-hero{
+  height:292px;
+  background:
+    radial-gradient(620px 320px at 18% 14%,rgba(255,255,255,.60),transparent 70%),
+    radial-gradient(560px 300px at 96% 4%,rgba(214,228,255,.62),transparent 74%),
+    linear-gradient(108deg,rgba(206,193,253,.78) 0%,rgba(226,219,254,.66) 38%,rgba(235,238,255,.52) 70%,rgba(255,255,255,.36) 100%);
+}
+.js-hero-mascot{left:4px;bottom:-8px;width:300px;z-index:3}
+.js-hero-mascot img{width:100%;display:block}
+.js-ring{opacity:.35}
+/* 手写体换成设计稿原字（透明底 PNG），原 CSS 文字隐藏 */
+.js-hero-copy{left:308px;top:44px;width:340px;height:auto;z-index:4;background:none}
+.js-hero-copy .js-hero-title,.js-hero-copy .js-hero-sub,.js-hero-copy .js-hero-tag{display:none}
+.js-slogan-img{display:block;width:340px;height:auto;filter:drop-shadow(0 4px 10px rgba(110,94,210,.10))}
+.js-cloud-photo{
+  position:absolute;right:4%;top:22%;width:180px;height:auto;z-index:2;
+  pointer-events:none;opacity:.94;
+}
+.js-city{opacity:.30}
+
+/* ---------- 天气：设计稿里是 Hero 右上的一块透明文字卡 ---------- */
+#view-home > .weather{
+  position:absolute;top:96px;right:7%;width:230px;z-index:6;
+  background:transparent!important;border:0!important;box-shadow:none!important;
+  backdrop-filter:none!important;padding:0!important;margin:0!important;
+}
+#view-home > .weather::before,#view-home > .weather::after{display:none!important}
+#view-home > .weather .weather-top{display:block}
+#view-home > .weather .weather-city{
+  justify-content:flex-end;color:#5B4C96;font-size:13px;font-weight:600;
+  letter-spacing:1px;text-shadow:0 2px 8px rgba(255,255,255,.9);
+}
+#view-home > .weather .weather-city svg{width:13px;height:13px}
+#view-home > .weather .weather-cond{display:none}
+#view-home > .weather .weather-now{text-align:right;margin-top:2px}
+#view-home > .weather .weather-temp{
+  font-size:52px;font-weight:800;line-height:1.08;color:#3F3574;
+  text-shadow:0 4px 14px rgba(255,255,255,.9);
+}
+#view-home > .weather .weather-temp sup{font-size:20px;font-weight:600}
+#view-home > .weather .weather-range{
+  font-size:11px;color:#6B6491;letter-spacing:.6px;margin-top:2px;
+}
+#view-home > .weather .weather-stats{display:none}
+
+/* ---------- 首页标题条：压成一行小工具条，不占视觉重心 ---------- */
+#view-home > .page-head{
+  margin:0;padding:0;display:flex;align-items:center;justify-content:flex-end;
+  min-height:0;
+}
+#view-home > .page-head > div:first-child{display:none}
+#view-home > .page-head .btn{padding:5px 12px;font-size:11px;opacity:.72;border-radius:99px}
+
+/* ---------- 首页主体：三列网格重排（纯 CSS，DOM 顺序不变） ---------- */
+#view-home.active{
+  display:grid;
+  grid-template-columns:minmax(0,2.32fr) minmax(0,1.30fr) minmax(0,.96fr);
+  grid-auto-rows:auto;gap:16px;align-items:start;
+}
+#view-home > .js-hero{grid-column:1/-1;grid-row:1}
+#view-home > .page-head{grid-column:1/-1;grid-row:2}
+#view-home > .js-look-row{grid-column:1/-1;grid-row:3;margin-top:2px}
+#view-home > .js-home-bottom{grid-column:1;grid-row:4/6}
+#view-home > .section-label{grid-column:2;grid-row:4;margin:0}
+#view-home > .entry-grid{grid-column:2;grid-row:5;margin:0}
+#view-home > .js-hanger{grid-column:3;grid-row:4/6}
+
+/* ---------- 今日穿搭大卡 ---------- */
+.js-look-row{grid-template-columns:minmax(0,1fr) 290px;gap:16px;align-items:stretch}
+.js-look-panel{padding:18px 22px 20px;margin:0;position:relative}
+.js-look-head{margin-bottom:12px}
+.js-look-title{font-size:17px}
+.js-look-date{font-size:9px;letter-spacing:1.6px}
+.js-look-more{
+  font-size:11px;padding:6px 14px;border-radius:99px;
+  background:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.96);
+  box-shadow:0 6px 16px rgba(110,94,210,.09);
+}
+
+/* 设计稿同款：真人主图 + 说明 + 查看全部 */
+.js-look-feature{
+  display:grid;grid-template-columns:132px minmax(0,1fr) auto;
+  gap:16px;align-items:center;margin-bottom:14px;
+}
+.js-look-photo{
+  width:132px;height:150px;object-fit:cover;object-position:center 22%;
+  border-radius:20px;background:#F3F0FB;
+  box-shadow:0 8px 20px rgba(110,94,210,.10);
+}
+.js-look-desc{padding:10px 14px;border-radius:18px;background:rgba(246,242,255,.82)}
+.js-look-hi{font-size:12px;color:#8B79F0;font-weight:600;letter-spacing:.4px;margin-bottom:4px}
+.js-look-desc p{margin:0;font-size:12px;line-height:1.75;color:#5B537F}
+.js-look-desc p b{color:#6F5FDC}
+.js-look-more-btn{
+  align-self:center;white-space:nowrap;border:0;cursor:pointer;
+  padding:9px 16px;border-radius:99px;font-size:12px;font-weight:600;color:#fff;
+  background:linear-gradient(120deg,#9A88F5,#6F5FDC);
+  box-shadow:0 8px 20px rgba(111,95,220,.24);transition:.2s;
+}
+.js-look-more-btn:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(111,95,220,.34)}
+
+/* 三套方案卡压成设计稿里的小缩略图卡，但反馈按钮仍可点 */
+.js-look-panel > .section-label{font-size:11px;margin:0 0 10px;color:#8B79F0;letter-spacing:1px}
+.js-look-panel > .section-label::before{display:none}
+.js-look-panel .outfit-grid{gap:12px}
+.js-look-panel .outfit-card{
+  padding:9px 10px 7px;gap:4px;border-radius:20px;
+  background:rgba(255,255,255,.86);
+}
+.js-look-panel .outfit-rank{font-size:9px;letter-spacing:1px;opacity:.72}
+.js-look-panel .outfit-name{font-size:11px;font-weight:700;margin-bottom:1px}
+.js-look-panel .outfit-items{
+  display:flex;gap:6px;align-items:center;justify-content:flex-start;
+}
+.js-look-panel .gitem:nth-child(n+3){display:none}
+.js-look-panel .gitem .cat{display:none}
+.js-look-panel .gitem .thumb{width:46px;height:46px;border-radius:12px}
+.js-look-panel .outfit-reason,.js-look-panel .outfit-notes{display:none}
+.js-look-panel .outfit-actions{gap:3px;margin-top:1px}
+.js-look-panel .rate-btn{font-size:0;padding:2px 6px;border-radius:9px}
+.js-look-panel .rate-btn svg{width:12px;height:12px}
+.js-look-panel .outfit-card > .btn{font-size:9px;padding:3px 8px;margin-top:0;border-radius:9px}
+/* 缩略图卡右侧的箭头，对齐设计稿 */
+.js-look-panel .outfit-items::after{
+  content:'›';margin-left:auto;font-size:20px;line-height:1;color:#8B79F0;
+  padding:0 4px;opacity:.8;
+}
+
+/* ---------- 衣橱好搭档：换成设计稿里的挥手遂遂 ---------- */
+.js-buddy{
+  height:auto;min-height:100%;flex-direction:row;align-items:center;
+  justify-content:flex-start;gap:2px;padding:14px 12px 14px 4px;text-align:left;
+  background:rgba(255,255,255,.66);
+}
+.js-buddy img{
+  width:52%;max-width:none;height:auto;max-height:190px;object-fit:contain;flex:none;
+  filter:drop-shadow(0 8px 16px rgba(110,94,210,.16));
+}
+.js-buddy .t{font-size:20px;line-height:1.3;transform:rotate(-4deg);margin-left:-6px}
+.js-buddy .t small{font-size:12px;margin-top:6px}
+
+/* ---------- 我的衣橱：设计稿里的 5 个品类小图标 ---------- */
+.js-home-bottom,.js-quick-panel{
+  background:rgba(255,255,255,.80);backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,.94);border-radius:var(--r-lg);
+  box-shadow:0 16px 40px rgba(110,94,210,.09);
+  padding:16px 18px 18px;
+}
+.js-panel-head{
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:13px;font-weight:700;color:var(--ink);margin-bottom:14px;
+}
+.js-panel-head .ico{color:#8B79F0;margin-right:4px}
+.js-panel-more{font-size:11px;font-weight:500;color:#8B79F0;cursor:pointer}
+.js-panel-more:hover{text-decoration:underline}
+.js-cats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.js-cat{
+  display:flex;flex-direction:column;align-items:center;text-align:center;cursor:pointer;
+  padding:9px 4px 10px;border-radius:18px;background:rgba(255,255,255,.86);
+  border:1px solid rgba(255,255,255,.94);transition:.22s;
+}
+.js-cat:hover{transform:translateY(-4px);box-shadow:0 10px 24px rgba(110,94,210,.14)}
+.js-cat img{width:52px;height:52px;object-fit:contain;margin-bottom:4px}
+.js-cat b{font-size:11px;color:#4B4370;font-weight:600}
+.js-cat small{font-size:8px;color:#A29BC4;margin-top:3px;white-space:nowrap}
+
+/* ---------- 快捷功能：原 entry-grid 保留，只换外壳与排布 ---------- */
+#view-home > .section-label{
+  font-size:13px;font-weight:700;color:var(--ink);letter-spacing:0;
+  padding:0 0 0 4px;
+}
+#view-home > .section-label::before{display:none}
+#view-home > .entry-grid{
+  grid-template-columns:1fr;gap:10px;
+  background:rgba(255,255,255,.80);backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,.94);border-radius:var(--r-lg);
+  box-shadow:0 16px 40px rgba(110,94,210,.09);padding:14px;
+}
+#view-home > .entry-grid .entry-card{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:18px;
+  background:rgba(255,255,255,.82);border:1px solid rgba(255,255,255,.94);
+  box-shadow:0 5px 14px rgba(110,94,210,.05);
+}
+#view-home > .entry-grid .entry-card:hover{transform:translateY(-2px)}
+#view-home > .entry-grid .entry-ico{width:34px;height:34px;flex:none;border-radius:12px;margin:0}
+#view-home > .entry-grid .entry-ico svg{width:17px;height:17px}
+#view-home > .entry-grid .entry-txt .t{font-size:12px;font-weight:700}
+#view-home > .entry-grid .entry-txt .d{font-size:9px;color:#A29BC4}
+
+/* ---------- 右下角衣架照片卡（设计稿原图） ---------- */
+.js-hanger{
+  border-radius:var(--r-lg);overflow:hidden;
+  box-shadow:0 16px 40px rgba(110,94,210,.12);
+  border:1px solid rgba(255,255,255,.9);
+}
+.js-hanger img{width:100%;height:100%;min-height:230px;object-fit:cover;display:block}
+
+/* ---------- 响应式：窄屏退回普通块流，避免网格挤压 ---------- */
+@media (max-width:1180px){
+  #view-home.active{display:block}
+  #view-home > .weather{position:static;width:auto;margin:12px 0!important}
+  #view-home > .js-home-bottom,#view-home > .js-hanger,#view-home > .entry-grid{margin-top:16px}
+  .js-look-row{grid-template-columns:1fr}
+}
+@media (max-width:768px){
+  .js-hero{height:230px}
+  .js-hero-mascot{width:200px}
+  .js-hero-copy,.js-slogan-img{width:200px;left:190px}
+  .js-cloud-photo{width:110px}
+  .js-look-feature{grid-template-columns:100px 1fr;gap:10px}
+  .js-look-photo{width:100px;height:120px}
+  .js-look-more-btn{grid-column:1/-1;justify-self:end}
+  .js-cats{grid-template-columns:repeat(3,1fr)}
+  .js-buddy img{width:44%}
+}
+@media (max-width:480px){
+  .js-slogan-img{display:none}
+  .js-look-feature{grid-template-columns:1fr}
+  .js-cats{grid-template-columns:repeat(2,1fr)}
+}
+
+
+/* ===== 今遂 UI v4b 收尾微调 ===== */
+
+/* ===== v4 收尾微调：对齐参考图首屏，修重叠 / 去边框 / 压高度 ===== */
+
+/* Hero 不再是一张「卡片」，直接融进整屏淡紫雾面 */
+.js-hero{
+  height:250px;
+  background:transparent!important;border:0!important;box-shadow:none!important;
+  border-radius:0!important;
+}
+.js-ring{opacity:.28}
+.js-city{opacity:.11;height:58px}
+.js-cloud-photo{right:1.5%;top:14%;width:142px;opacity:.85}
+
+/* 天气卡左移，避开云朵；字重和留白对齐参考图 */
+#view-home > .weather{top:70px;right:19%;width:210px}
+#view-home > .weather .weather-temp{font-size:48px}
+
+/* 顶栏只留搜索 + 铃铛 + 头像，技术状态条隐去 */
+#backend-badge{display:none!important}
+.nav-item{color:rgba(255,255,255,.95)}
+
+/* 今日穿搭大卡整体压矮，逼近参考图一屏节奏 */
+.js-look-panel{padding:14px 18px 14px}
+.js-look-head{margin-bottom:8px}
+.js-look-feature{
+  grid-template-columns:112px minmax(0,1fr) auto;gap:12px;margin-bottom:8px;
+}
+.js-look-photo{width:112px;height:116px;border-radius:18px}
+.js-look-desc{padding:8px 12px}
+.js-look-hi{font-size:10px;margin-bottom:2px}
+.js-look-desc p{font-size:11px;line-height:1.6}
+.js-look-more-btn{padding:8px 14px;font-size:11px}
+.js-look-panel > .section-label{font-size:10px;margin:0 0 8px}
+.js-look-panel .outfit-grid{gap:10px}
+.js-look-panel .outfit-card{padding:8px;gap:3px;border-radius:18px}
+.js-look-panel .outfit-rank{font-size:8px}
+.js-look-panel .outfit-name{font-size:10px;margin-bottom:0}
+.js-look-panel .gitem .thumb{width:44px;height:46px;border-radius:11px}
+.js-look-panel .outfit-items::after{font-size:17px}
+.js-look-panel .rate-btn{padding:2px 4px}
+.js-look-panel .rate-btn svg{width:11px;height:11px}
+.js-look-panel .outfit-card > .btn{font-size:8px;padding:3px 6px}
+
+/* 陪伴卡：吉祥物与文字分两列，不再糊在一起 */
+.js-buddy{
+  display:grid;grid-template-columns:54% minmax(0,1fr);align-items:center;
+  gap:0;padding:10px 12px 10px 2px;text-align:left;
+}
+.js-buddy img{width:100%;max-width:none;height:auto;max-height:196px;justify-self:start}
+.js-buddy .t{margin:0;font-size:19px;transform:rotate(-4deg);text-align:left}
+.js-buddy .t small{font-size:11px;margin-top:5px}
+
+/* 底部三块：顶部对齐 + 等高，标题并入快捷功能卡内 */
+#view-home.active{align-items:stretch}
+#view-home > .section-label{display:none}
+#view-home > .js-home-bottom{grid-column:1;grid-row:4/6;align-self:stretch}
+#view-home > .js-hanger{grid-column:3;grid-row:4/6;align-self:stretch}
+#view-home > .entry-grid{
+  grid-column:2;grid-row:4/6;align-self:stretch;
+  display:flex;flex-direction:column;gap:10px;padding:16px 18px;
+}
+#view-home > .entry-grid::before{
+  content:'⚡ 快捷功能';display:block;font-size:13px;font-weight:700;
+  color:var(--ink);margin:0 0 2px 4px;
+}
+#view-home > .entry-grid .entry-card{flex:1;min-height:0}
+.js-home-bottom{padding:16px 18px}
+.js-panel-head{margin-bottom:12px}
+.js-cat img{width:60px;height:60px}
+.js-cat b{font-size:12px}
+.js-cat small{font-size:9px}
+.js-hanger img{min-height:0;height:100%}
+
+
+/* ===== 今遂 UI v4c 最终微调 ===== */
+
+/* ===== v4c 最终微调：一屏看全 + 陪伴卡不重叠 + 图标增强 ===== */
+
+/* 左上纯白圆形光斑太跳，压成柔和雾感 */
+.app::before{opacity:.30}
+
+/* 陪伴卡：吉祥物收窄居中，文字独立右侧，不再压手 */
+.js-buddy{grid-template-columns:60% minmax(0,40%);padding:8px 10px 8px 0}
+.js-buddy img{max-height:172px;justify-self:center}
+.js-buddy .t{font-size:18px;padding-left:6px;white-space:nowrap}
+.js-buddy .t small{font-size:10px;white-space:normal}
+
+/* 今日穿搭大卡再压一档，让底部三块进入首屏 */
+.js-look-panel{padding:12px 18px 12px}
+.js-look-feature{grid-template-columns:104px minmax(0,1fr) auto;gap:10px;margin-bottom:6px}
+.js-look-photo{width:104px;height:100px;border-radius:16px}
+.js-look-desc{padding:6px 10px}
+.js-look-hi{font-size:9px}
+.js-look-desc p{font-size:10px;line-height:1.55}
+.js-look-more-btn{padding:7px 12px;font-size:10px}
+.js-look-panel > .section-label{font-size:9px;margin:0 0 6px}
+.js-look-panel .outfit-card{padding:7px;gap:2px}
+.js-look-panel .outfit-name{display:none}
+.js-look-panel .outfit-rank{font-size:8px;opacity:.65}
+.js-look-panel .gitem .thumb{width:42px;height:42px}
+.js-look-panel .outfit-actions{margin-top:0}
+.js-look-panel .outfit-card > .btn{font-size:8px;padding:2px 5px;margin-top:0}
+
+/* 底部三块压矮、内容更紧凑 */
+.js-home-bottom,#view-home > .entry-grid{padding:12px 16px}
+.js-panel-head{margin-bottom:8px}
+.js-cats{gap:6px}
+.js-cat{padding:6px 3px 8px;border-radius:15px}
+.js-cat img{width:48px;height:48px;margin-bottom:2px;filter:saturate(1.35) contrast(1.12)}
+.js-cat b{font-size:11px}
+.js-cat small{font-size:8px}
+#view-home > .entry-grid{gap:8px}
+#view-home > .entry-grid::before{font-size:12px;margin-bottom:0}
+#view-home > .entry-grid .entry-card{padding:8px 10px;border-radius:15px}
+#view-home > .entry-grid .entry-ico{width:30px;height:30px;border-radius:10px}
+#view-home > .entry-grid .entry-txt .t{font-size:11px}
+#view-home > .entry-grid .entry-txt .d{font-size:8px}
+
+/* 「更多」用 CSS 画紫色三点，比淡到几乎看不见的抠图更清晰 */
+.js-cat:last-child img{display:none}
+.js-cat:last-child::before{
+  content:'•••';display:grid;place-items:center;
+  width:44px;height:44px;margin-bottom:2px;border-radius:50%;
+  background:linear-gradient(140deg,#B7A8FF,#8B79F0);
+  color:#fff;font-size:13px;letter-spacing:1px;line-height:1;
+  box-shadow:0 6px 14px rgba(110,94,210,.20);
+}
+
+
+
+/* ===== v4d：去掉纯白圆形光斑 / 远景城市 / 陪伴卡吉祥物放大 ===== */
+.app::before{
+  opacity:.42;
+  background-image:
+    radial-gradient(circle at 91% 12%,rgba(255,255,255,.58) 0 26px,transparent 29px),
+    radial-gradient(circle at 95% 16%,rgba(255,255,255,.46) 0 20px,transparent 23px),
+    radial-gradient(circle at 87% 8%,rgba(255,214,107,.48) 0 8px,transparent 10px);
+}
+.js-city{opacity:.06}
+.js-buddy img{max-height:210px}
+
+
+/* ===== 今遂 UI v4e：logo 去白边换字体 / 顶栏去白雾色带 ===== */
+
+/* 顶栏不再自带一层白雾：和整屏淡紫渐变无缝衔接，只保留搜索框/铃铛/头像 */
+.topbar{
+  background:transparent!important;
+  border-bottom:0!important;
+}
+
+/* 侧栏 logo：用去掉白边的透明版图标，不再是一块白色圆角砖 */
+.sidebar .brand-mark{
+  background:transparent!important;
+  box-shadow:0 8px 20px rgba(110,94,210,.14);
+}
+.sidebar .brand-mark img{object-fit:contain}
+
+/* 「今遂」字体换成标题同款衬线体，干净利落，不再是行楷毛笔字 */
+.sidebar .brand-name{
+  font-family:var(--serif);
+  font-weight:700;
+  font-size:24px;
+  letter-spacing:6px;
+  margin-left:3px; /* 抵消 letter-spacing 造成的偏移 */
+}
+.sidebar .brand-sub{letter-spacing:5px;margin-top:5px}
+
+
+/* ===== 今遂 UI v4f：米白基调 / 吉祥物沉底 / 衣架卡净字 / 恢复三套方案卡 ===== */
+
+/* 1) 整屏底色：米白为主，淡紫只留一点点 */
+.app{
+  background:
+    radial-gradient(900px 460px at 88% -6%,rgba(180,197,244,.34),transparent 72%),
+    radial-gradient(820px 420px at 6% 0%,rgba(184,167,233,.16),transparent 70%),
+    radial-gradient(760px 520px at 98% 92%,rgba(220,209,246,.15),transparent 74%),
+    linear-gradient(178deg,#F8F3EA 0%,#FAF7F0 30%,#FCFAF6 58%,#FDFCF9 82%,#FEFDFC 100%);
+}
+/* 米白底上，右上淡蓝光斑顺势提亮 */
+.app::before{opacity:.24}
+
+/* 2) 右下角吉祥物沉到内容底层：完整不透明，滚动时被卡片自然盖住 */
+.main::after{z-index:-1;opacity:1}
+body.gate .main::after{opacity:1}
+
+/* 3) 衣架卡：换无文字的干净照片，标语用清晰的排版文字 */
+.js-hanger{position:relative}
+.js-hanger-cap{
+  position:absolute;left:18px;top:16px;z-index:2;pointer-events:none;
+  font-family:var(--serif);
+  text-shadow:0 1px 12px rgba(255,255,255,.95),0 0 6px rgba(255,255,255,.8);
+}
+.js-hanger-cap b{display:block;font-size:21px;font-weight:700;letter-spacing:5px;color:#3F3574}
+.js-hanger-cap span{display:block;font-size:12px;letter-spacing:2px;margin-top:7px;color:#5B4C96}
+
+/* 4) 今日穿搭：恢复原来样式——完整展示 3 套推荐搭配（v5b：整体压矮一档） */
+.js-look-panel .outfit-grid{gap:12px}
+.js-look-panel .outfit-card{
+  padding:10px 14px 9px;gap:5px;border-radius:20px;
+  background:rgba(255,255,255,.94);border:1px solid rgba(255,255,255,.95);
+}
+.js-look-panel .outfit-rank{font-size:9px;letter-spacing:1.2px;opacity:.85}
+.js-look-panel .outfit-name{display:block;font-size:12px;font-weight:700;margin-bottom:1px}
+.js-look-panel .gitem:nth-child(n+3){display:flex}
+.js-look-panel .gitem .cat{display:block;font-size:9.5px;height:auto}
+.js-look-panel .gitem .thumb{width:48px;height:50px;border-radius:12px}
+.js-look-panel .outfit-items::after{content:none}
+.js-look-panel .outfit-reason{display:block;font-size:11px;padding:6px 10px;line-height:1.5}
+.js-look-panel .outfit-notes{display:flex;font-size:10.5px;line-height:1.45}
+.js-look-panel .outfit-actions{gap:5px;margin-top:2px}
+.js-look-panel .rate-btn{font-size:10.5px;padding:4px 8px;border-radius:10px}
+.js-look-panel .rate-btn svg{width:12px;height:12px}
+.js-look-panel .outfit-card > .btn{font-size:10px;padding:5px 10px;border-radius:10px}
+
+/* 5) 聊天头像：统一换成圆头小遂遂（方形圆角头像） */
+.msg-ava img{object-fit:cover;border-radius:inherit}
+
+
+/* ===== 今遂 UI v4g：去灵感条 / 去陪伴小卡 / 右下换「衣橱好搭档」卡 ===== */
+
+/* 今日穿搭顶部的灵感条（照片+文案+按钮）整条去掉 */
+.js-look-feature{display:none!important}
+
+/* 穿搭行右侧挤歪的陪伴小卡拿掉，穿搭大卡通栏铺满 */
+.js-look-row{grid-template-columns:minmax(0,1fr)}
+.js-look-row > .js-buddy{display:none}
+
+/* 右下角换成设计稿里的「衣橱好搭档」卡：白底 + 吉祥物 + 清爽文字，高度收敛 */
+.js-hanger{
+  background:rgba(255,255,255,.82);
+  border:1px solid rgba(255,255,255,.95);
+  box-shadow:0 16px 40px rgba(110,94,210,.10);
+  border-radius:var(--r-lg);
+  display:flex;align-items:center;gap:6px;
+  padding:16px 14px 16px 6px;
+  height:auto;align-self:stretch!important;
+}
+.js-hanger img{width:48%;height:100%;min-height:0;object-fit:contain;flex:none}
+.js-hanger-txt b{
+  font-family:var(--hand);font-size:24px;font-weight:700;
+  color:#5B4C96;display:block;line-height:1.25;white-space:nowrap;
+}
+.js-hanger-txt span{
+  font-family:var(--hand);font-size:13px;color:#7A6CB0;
+  display:block;margin-top:9px;white-space:nowrap;
+}
+
+/* 天气卡文字整体放大一号 */
+#view-home > .weather{width:250px}
+#view-home > .weather .weather-city{font-size:17px!important;letter-spacing:1.5px}
+#view-home > .weather .weather-city svg{width:16px;height:16px}
+#view-home > .weather .weather-temp{font-size:64px!important}
+#view-home > .weather .weather-temp sup{font-size:26px!important}
+#view-home > .weather .weather-range{font-size:14px!important;margin-top:5px}
+
+/* 顶栏搜索框去掉 */
+.js-search{display:none!important}
+/* 搜索框没了之后，铃铛和头像靠回右上角 */
+.js-top-right{margin-left:auto}
+
+/* ===== 今遂 UI v5：我的衣橱板块 → 时尚资讯板块 ===== */
+/* 旧板块整体隐藏（DOM 已替换为 js-trend，这里兜底防止任何残留显示） */
+.js-home-bottom{display:none!important}
+/* 时尚资讯卡：占据原「我的衣橱」的网格位（左列），竖排资讯列表 */
+.js-trend{
+  background:rgba(255,255,255,.80);backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,.94);border-radius:var(--r-lg);
+  box-shadow:0 16px 40px rgba(110,94,210,.09);
+  padding:16px 18px 14px;
+  grid-column:1;grid-row:4/6;align-self:stretch;
+  display:flex;flex-direction:column;min-height:0;
+}
+.js-trend-row{
+  flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;
+  overflow-y:auto;padding-right:2px;scrollbar-width:thin;
+}
+.js-trend-card{
+  display:flex;gap:10px;align-items:center;cursor:pointer;flex:none;
+  background:rgba(255,255,255,.88);border:1px solid rgba(230,226,246,.78);
+  border-radius:14px;padding:8px 10px;transition:.18s;
+}
+.js-trend-card:hover{transform:translateX(3px);border-color:rgba(139,121,240,.42);box-shadow:0 8px 18px rgba(110,94,210,.10)}
+.js-trend-card img{
+  width:56px;height:46px;object-fit:cover;border-radius:9px;flex:none;
+  background:#EFECFA;display:block;
+}
+.js-trend-card .tt{flex:1;min-width:0}
+.js-trend-card .t{
+  font-size:11.5px;font-weight:600;color:#4A4278;line-height:1.4;height:32px;overflow:hidden;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+}
+.js-trend-card .s{font-size:9.5px;color:#8B84B8;margin-top:3px;letter-spacing:.4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.js-trend-card .s b{color:#8B79F0;text-transform:uppercase;margin-right:6px;font-weight:700}
+.js-trend-loading{font-size:11.5px;color:#8B84B8;padding:16px 2px}
+
+/* ===== 今遂 UI v5c：资讯压扁 + 快捷功能放大 + 天气归位 + Hero 纯色底 ===== */
+
+/* ① 时尚资讯：压扁条目，默认只显示 3 条，其余折叠进「更多」 */
+.js-trend-card{padding:9px 12px;gap:11px;border-radius:14px}
+.js-trend-card img{width:42px;height:42px;border-radius:10px}
+.js-trend-card .t{font-size:12px;-webkit-line-clamp:1}
+.js-trend-card .s{font-size:9px;margin-top:2px}
+.js-trend-card.is-more{display:none}
+.js-trend-card.expanded{display:flex}
+.js-trend-more{
+  margin-top:10px;align-self:flex-start;
+  font-size:11px;font-weight:700;color:#7A6CB0;letter-spacing:1px;
+  background:rgba(139,121,240,.10);border:1px solid rgba(139,121,240,.24);
+  border-radius:99px;padding:6px 16px;cursor:pointer;transition:.18s;
+}
+.js-trend-more:hover{background:rgba(139,121,240,.20);color:#5B4C96}
+
+/* ② 快捷功能：入口放大填充，图标和文字都升一档 */
+#view-home > .entry-grid{grid-template-columns:1fr;gap:12px;align-content:stretch}
+#view-home > .entry-grid .entry-card{
+  padding:22px 24px;gap:16px;flex:1;min-height:96px;
+  align-items:center;border-radius:18px;
+}
+#view-home > .entry-grid .entry-ico{width:52px;height:52px;border-radius:15px;flex:none}
+#view-home > .entry-grid .entry-ico svg{width:26px;height:26px}
+#view-home > .entry-grid .entry-txt .t{font-size:15px;font-weight:700}
+#view-home > .entry-grid .entry-txt .d{font-size:11.5px;margin-top:3px}
+/* 好搭档卡：文字与吉祥物同步放大 */
+.js-hanger-txt b{font-size:30px!important}
+.js-hanger-txt span{font-size:16px!important;margin-top:12px!important}
+.js-hanger img{width:52%!important}
+
+/* ③ 天气：窗口窄于 900px 也不许掉下来，保持挂在右上 */
+@media (max-width:1100px){
+  #view-home .weather{position:absolute!important;width:210px!important;right:14%!important;margin:0!important}
+}
+@media (max-width:900px){
+  #view-home .weather{position:absolute!important;width:190px!important;right:2%!important;top:60px!important;margin:0!important}
+}
+
+/* ④ Hero：去掉设计稿抠的杂图，背景用干净的淡紫→米白纯渐变 */
+.js-hero{
+  background:linear-gradient(112deg,rgba(216,207,255,.92) 0%,rgba(230,224,255,.86) 42%,rgba(244,242,252,.92) 74%,rgba(253,251,247,.96) 100%)!important;
+  border:1px solid rgba(255,255,255,.85)!important;
+}
+.js-city{display:none!important}
+.js-cloud-photo{display:none!important}
+.js-ring{opacity:.16}
+#view-home > .weather{top:64px!important;right:9%!important}
+
+/* ===== 今遂 UI v5d：吉祥物真抠图融合 / 天气名+卡通图标 / 今日穿搭放大 ===== */
+
+/* ① 吉祥物已换成透明底抠图，加一点柔和投影即可自然融入渐变 */
+.js-hero-mascot img{filter:drop-shadow(0 12px 22px rgba(110,94,210,.16))}
+
+/* ② 天气卡：城市 + 天气名（晴/多云/雨）+ 随天气切换的卡通图标 */
+#view-home > .weather{padding:16px 18px 14px}
+#view-home > .weather .weather-city{font-size:15px!important;font-weight:700;color:#4A4278}
+#view-home > .weather .weather-cond{
+  display:flex!important;align-items:center;gap:9px;
+  margin-top:8px;font-size:14px!important;font-weight:700;color:#6F5FDC;
+}
+#view-home > .weather .weather-icon{
+  width:40px;height:40px;color:initial;opacity:1;flex:none;
+}
+#view-home > .weather .weather-now{text-align:right;margin-top:-6px}
+#view-home > .weather .weather-temp{font-size:58px!important}
+#view-home > .weather .weather-range{font-size:12px!important;margin-top:6px}
+
+/* ③ 今日穿搭：整体放大一号，缩略图、文案、按钮都看得清 */
+.js-look-panel{padding:20px 24px 24px}
+.js-look-head{margin-bottom:16px}
+.js-look-title{font-size:21px!important}
+.js-look-title b{font-size:22px}
+.js-look-date{font-size:11px!important}
+.js-look-more{font-size:13px!important}
+.js-look-panel > .section-label{font-size:13px!important;margin-bottom:14px}
+.js-look-panel .outfit-grid{gap:16px}
+.js-look-panel .outfit-card{
+  padding:14px 16px 12px;gap:7px;border-radius:22px;
+  background:rgba(255,255,255,.94);border:1px solid rgba(255,255,255,.95);
+}
+.js-look-panel .outfit-rank{font-size:11px!important;letter-spacing:1.2px}
+.js-look-panel .outfit-name{font-size:15px!important;margin-bottom:2px}
+.js-look-panel .outfit-items{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 10px}
+.js-look-panel .gitem{width:auto;min-width:0;display:block!important}
+.js-look-panel .gitem .cat{font-size:11px!important}
+.js-look-panel .gitem .thumb{width:58px!important;height:60px!important;border-radius:14px!important}
+.js-look-panel .outfit-reason{font-size:12.5px!important;padding:8px 12px!important;line-height:1.6}
+.js-look-panel .outfit-notes{font-size:12px!important;line-height:1.55}
+.js-look-panel .outfit-actions{gap:8px;margin-top:4px}
+.js-look-panel .rate-btn{font-size:12px!important;padding:6px 12px!important;border-radius:11px}
+.js-look-panel .rate-btn svg{width:14px!important;height:14px!important}
+.js-look-panel .outfit-card > .btn{font-size:11.5px!important;padding:6px 14px!important;border-radius:11px}
+/* 底部「今天穿了 · 反馈」行 */
+.js-look-panel .outfit-foot,.js-look-panel .look-foot{font-size:12px!important}
+
+/* ===== 今遂 UI v5e：天气卡精简 / 撤好搭档卡用统一吉祥物 / Hero 圆角 ===== */
+
+/* ① 天气卡：图标去掉，天气名挪到气温上方，温度放大 */
+#view-home > .weather .weather-now{text-align:right;margin-top:0!important}
+#view-home > .weather .weather-cond{
+  display:block!important;margin:0 0 6px;
+  font-size:15px!important;font-weight:700;color:#6F5FDC;
+}
+#view-home > .weather .weather-icon{display:none!important}
+#view-home > .weather .weather-temp{font-size:78px!important}
+#view-home > .weather .weather-temp sup{font-size:30px!important}
+#view-home > .weather .weather-range{margin-top:8px!important}
+
+/* ② 右下角：撤掉「衣橱好搭档」卡，恢复与其他页一致的吉祥物背景 */
+.js-hanger{display:none!important}
+.main:has(#view-home.active)::after{display:block!important}
+/* 两列重排：时尚资讯占左，快捷功能占右，右下留白给吉祥物 */
+#view-home.active{grid-template-columns:minmax(0,1.62fr) minmax(0,1fr)!important}
+#view-home > .js-trend{grid-column:1;grid-row:4/6}
+#view-home > .section-label{grid-column:2;grid-row:4}
+#view-home > .entry-grid{grid-column:2;grid-row:5}
+
+/* ③ Hero 大横幅改圆角 */
+.js-hero{border-radius:30px!important}
+
+/* ===== 今遂 UI v5i-revert：恢复原版式与原 slogan（哇，好合适！♡） ===== */
+
+/* ===== 今遂 UI v5g：时尚资讯与快捷功能顶对齐 ===== */
+/* 「⚡ 快捷功能」标题原来单独占一行把卡片压低了；改成卡片内标题，两卡同一行起点 */
+#view-home > .section-label{display:none!important}
+#view-home > .entry-grid{
+  grid-column:2;grid-row:4/6;position:relative;padding-top:46px!important;
+}
+#view-home > .entry-grid::before{
+  content:'⚡ 快捷功能';position:absolute;top:17px;left:18px;
+  font-size:13px;font-weight:700;color:var(--ink);letter-spacing:0;
+}
+
 </style>
 </head>
 <body>
@@ -550,7 +1694,7 @@ body.gate .topbar{display:none}
   <!-- ============ 侧边栏 ============ -->
   <aside class="sidebar">
     <div class="brand">
-      <div class="brand-mark"><img src="logo-icon.png?v=2" alt="今遂 JINSUI" /></div>
+      <div class="brand-mark"><img src="brand/v4/app-icon-v2.png" alt="今遂 JINSUI" /></div>
       <div>
         <div class="brand-name">今遂</div>
         <div class="brand-sub">JINSUI</div>
@@ -564,7 +1708,7 @@ body.gate .topbar{display:none}
         今日推荐
       </div>
       <div class="nav-item" data-view="wardrobe">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="14" rx="2"/><path d="M2.8 4h18.4"/><path d="M12 4v14"/><path d="M10.3 10.2v2.6M13.7 10.2v2.6" stroke-width="1.8"/><path d="M6.5 18v2.4M17.5 18v2.4"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c-1 2-3 2.6-3 5a3 3 0 0 0 6 0c0-2.4-2-3-3-5Z"/><path d="M9 8v4l-2.5 8a2 2 0 0 0 1.9 2.6h7.2a2 2 0 0 0 1.9-2.6L15 12V8"/></svg>
         电子衣橱
       </div>
       <div class="nav-item" data-view="chat">
@@ -588,7 +1732,7 @@ body.gate .topbar{display:none}
 
     <div class="sidebar-foot">
       <div class="user-chip" onclick="showView('me')">
-        <div class="avatar" id="sb-avatar"><img src="mascot.png" alt="遂遂" /></div>
+        <div class="avatar" id="sb-avatar"><img src="brand/mascot-front-cut.png" alt="遂遂" /></div>
         <div>
           <div class="name" id="sb-name">林晓</div>
           <div class="meta" id="sb-meta">上海 · 通勤 · 简约</div>
@@ -600,8 +1744,18 @@ body.gate .topbar{display:none}
   <!-- ============ 主区域 ============ -->
   <main class="main" id="main">
     <div class="topbar">
-      <div class="brand-mark"><img src="logo-icon.png?v=2" alt="今遂 JINSUI" /></div>
+      <div class="brand-mark"><img src="brand/v4/app-icon-v2.png" alt="今遂 JINSUI" /></div>
       <div class="ttl">今遂</div>
+      <div class="js-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <span>搜索衣服、场景或风格...</span><kbd>Ctrl K</kbd>
+      </div>
+      <div class="js-top-right">
+        <div class="js-bell">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        </div>
+        <img class="js-top-avatar" src="brand/v4/avatar.png" alt="遂遂" />
+      </div>
     </div>
     <div class="main-inner">
 
@@ -609,7 +1763,7 @@ body.gate .topbar{display:none}
       <section class="view" id="view-auth">
         <div class="auth-wrap">
           <div class="auth-card">
-            <img class="mascot-hero" src="mascot.png" alt="遂遂" />
+            <img class="mascot-hero" src="brand/mascot-hero.png" alt="遂遂" />
             <div class="auth-title">今遂 JINSUI</div>
             <div class="auth-sub">根据你的衣橱、天气与场景，生成真正能穿的穿搭建议。</div>
             <div class="auth-toggle">
@@ -653,7 +1807,7 @@ body.gate .topbar{display:none}
             <h1 class="page-title" style="margin-top:4px">先了解一下你</h1>
             <p class="lead">只需两步，我们就能为你生成贴合天气与场合的穿搭建议。性别与常用城市为必填，其余可稍后补充。</p>
           </div>
-          <img class="mascot-side" src="mascot.png" alt="遂遂" />
+          <img class="mascot-side" src="brand/mascot-front.png" alt="遂遂" />
         </div>
         <div class="profile-card">
           <div class="field">
@@ -701,6 +1855,41 @@ body.gate .topbar{display:none}
 
       <!-- ========== 首页 ========== -->
       <section class="view active" id="view-home">
+      <!-- ===== v3 装饰层：Hero（纯展示，无 id / 无脚本） ===== -->
+      <div class="js-hero">
+        <div class="js-ring"></div>
+        <div class="js-hero-mascot"><img src="brand/v4/hero-mascot-cut.png" alt="遂遂" /></div>
+        <div class="js-hero-copy">
+          <img class="js-slogan-img" src="brand/v4/slogan.png" alt="今遂 · 哇，好合适！" />
+          <div class="js-hero-title">今遂</div>
+          <div class="js-hero-sub">哇，好合适！<i>♡</i></div>
+          <div class="js-hero-tag">你的专属穿搭小助手 · JIN SUI</div>
+        </div>
+        <span class="js-spark" style="left:46%;top:10%;font-size:26px">✦</span>
+        <span class="js-spark" style="left:60%;top:32%;font-size:15px;color:#fff">✧</span>
+        <span class="js-spark" style="left:72%;top:12%;font-size:18px">✦</span>
+        <span class="js-spark" style="left:36%;top:62%;font-size:13px;color:#fff">✧</span>
+        <div class="js-cloud" style="right:5%;top:34%;width:120px;height:56px">
+          <span style="left:6px;top:22px;width:52px;height:34px"></span>
+          <span style="left:34px;top:8px;width:58px;height:48px"></span>
+          <span style="left:72px;top:24px;width:44px;height:30px"></span>
+        </div>
+        <img class="js-cloud-photo" src="brand/v4/cloud-right.png" alt="" />
+        <svg class="js-city" viewBox="0 0 1200 88" preserveAspectRatio="none" aria-hidden="true">
+          <g fill="#8B79F0">
+            <rect x="30" y="56" width="42" height="32"/><rect x="78" y="42" width="26" height="46"/>
+            <rect x="112" y="62" width="54" height="26"/><rect x="176" y="48" width="30" height="40"/>
+            <rect x="212" y="34" width="16" height="54"/><rect x="236" y="60" width="48" height="28"/>
+            <rect x="300" y="50" width="36" height="38"/><rect x="344" y="64" width="60" height="24"/>
+            <rect x="420" y="40" width="28" height="48"/><rect x="456" y="58" width="52" height="30"/>
+            <rect x="530" y="46" width="34" height="42"/><rect x="580" y="62" width="70" height="26"/>
+            <rect x="670" y="36" width="24" height="52"/><rect x="700" y="54" width="56" height="34"/>
+            <rect x="780" y="48" width="38" height="40"/><rect x="830" y="62" width="64" height="26"/>
+            <rect x="910" y="42" width="30" height="46"/><rect x="950" y="58" width="58" height="30"/>
+            <rect x="1030" y="50" width="40" height="38"/><rect x="1080" y="64" width="70" height="24"/>
+          </g>
+        </svg>
+      </div>
         <div class="page-head">
           <div>
             <div class="eyebrow">Good morning · 10月20日 周一</div>
@@ -724,12 +1913,9 @@ body.gate .topbar{display:none}
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
                 <span id="weather-city">上海</span>
               </div>
-              <div class="weather-cond">
-                <span id="weather-cond-text">多云 · 全天有微风</span>
-                <span class="weather-icon" id="weather-icon"></span>
-              </div>
             </div>
             <div class="weather-now">
+              <div class="weather-cond"><span id="weather-cond-text">多云 · 全天有微风</span><span class="weather-icon" id="weather-icon"></span></div>
               <div class="weather-temp" id="weather-temp">22<sup>°C</sup></div>
               <div class="weather-range" id="weather-range">最高 --° · 最低 --°</div>
             </div>
@@ -743,11 +1929,32 @@ body.gate .topbar{display:none}
         </div>
 
         <!-- 推荐方案 -->
-        <div class="section-label" id="outfit-label">为你搭配 · 3 套方案</div>
-        <div class="outfit-grid" id="outfit-grid"></div>
+        <div class="js-look-row">
+        <div class="js-look-panel">
+          <div class="js-look-head">
+            <div class="js-look-title"><b>✿</b>今日穿搭</div>
+            <div class="js-look-date">JINSUI · DAILY LOOK</div>
+            <div class="js-look-more">查看全部 →</div>
+          </div>
+          <div class="js-look-feature">
+            <img class="js-look-photo" src="brand/v4/look-photo.png" alt="今日穿搭" />
+            <div class="js-look-desc">
+              <div class="js-look-hi">GOOD EVENING · 今日份穿搭灵感</div>
+              <p>今天适合穿舒适又有层次感的穿搭～<br>结合天气与你的衣橱，为你准备了 <b>3 套</b> 今日穿搭方案 ✨</p>
+            </div>
+            <button class="js-look-more-btn" onclick="showView('history')">查看全部 →</button>
+          </div>
+          <div class="section-label" id="outfit-label">为你搭配 · 3 套方案</div>
+          <div class="outfit-grid" id="outfit-grid"></div>
+        </div>
+        <div class="js-buddy">
+          <img src="brand/v4/buddy-mascot.png" alt="遂遂" />
+          <div class="t">衣橱好搭档<small>随时为你出谋划策！</small></div>
+        </div>
+        </div>
 
         <!-- 功能入口 -->
-        <div class="section-label">更多功能</div>
+        <div class="section-label">⚡ 快捷功能</div>
         <div class="entry-grid">
           <div class="card entry-card" onclick="showView('chat')">
             <div class="entry-ico" style="background:var(--clay-soft);color:var(--clay-deep)">
@@ -757,7 +1964,7 @@ body.gate .topbar{display:none}
           </div>
           <div class="card entry-card" onclick="showView('wardrobe')">
             <div class="entry-ico" style="background:var(--sage-soft);color:#5E9A3A">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="14" rx="2"/><path d="M2.8 4h18.4"/><path d="M12 4v14"/><path d="M10.3 10.2v2.6M13.7 10.2v2.6" stroke-width="1.8"/><path d="M6.5 18v2.4M17.5 18v2.4"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c-1 2-3 2.6-3 5a3 3 0 0 0 6 0c0-2.4-2-3-3-5Z"/><path d="M9 8v4l-2.5 8a2 2 0 0 0 1.9 2.6h7.2a2 2 0 0 0 1.9-2.6L15 12V8"/></svg>
             </div>
             <div class="entry-txt"><div class="t">电子衣橱</div><div class="d">管理你的每一件衣物</div></div>
           </div>
@@ -768,6 +1975,15 @@ body.gate .topbar{display:none}
             <div class="entry-txt"><div class="t">购前评估</div><div class="d">看看新品是否值得入手</div></div>
           </div>
         </div>
+
+        <!-- ===== v5 装饰层：时尚资讯板块（数据来自 /api/v1/fashion/inspo，Vogue/ELLE RSS 采集） ===== -->
+        <div class="js-trend">
+          <div class="js-panel-head"><span><span class="ico">✦</span>时尚资讯</span><span class="js-panel-more">JINSUI · TRENDING</span></div>
+          <div class="js-trend-row" id="js-trend-row">
+            <div class="js-trend-loading">正在为你捕捉本周流行 ✦</div>
+          </div>
+        </div>
+        <div class="js-hanger"><img src="brand/v4/buddy-mascot.png" alt="遂遂" /><div class="js-hanger-txt"><b>衣橱好搭档</b><span>随时为你出谋划策！</span></div></div>
       </section>
 
       <!-- ========== 电子衣橱 ========== -->
@@ -872,11 +2088,7 @@ body.gate .topbar{display:none}
             </div>
             <div class="field">
               <label>品类 <span class="req">*</span></label>
-              <select class="select" id="eval-cat" onchange="onEvalCatChange()"><option value="">请选择</option></select>
-            </div>
-            <div class="field">
-              <label>子品类 <span class="opt">选填，能显著提高重复度判定精度</span></label>
-              <select class="select" id="eval-sub"><option value="">未指定（按名称推断）</option></select>
+              <select class="select" id="eval-cat"><option value="">请选择</option></select>
             </div>
             <div class="field">
               <label>主颜色</label>
@@ -946,7 +2158,7 @@ body.gate .topbar{display:none}
         </div>
 
         <div class="card me-head">
-          <div class="me-avatar" id="me-avatar"><img src="mascot.png" alt="遂遂" /></div>
+          <div class="me-avatar" id="me-avatar"><img src="brand/mascot-front-cut.png" alt="遂遂" /></div>
           <div style="flex:1">
             <div id="me-nickname" style="font-family:var(--serif);font-size:22px;font-weight:600">林晓</div>
             <div id="me-meta" style="font-size:13px;color:var(--ink-3);margin-top:2px">上海 · 女 · 168 cm · 标准</div>
@@ -1007,7 +2219,7 @@ body.gate .topbar{display:none}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>今日
     </div>
     <div class="bn" data-view="wardrobe" onclick="showView('wardrobe')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="14" rx="2"/><path d="M2.8 4h18.4"/><path d="M12 4v14"/><path d="M10.3 10.2v2.6M13.7 10.2v2.6" stroke-width="1.8"/><path d="M6.5 18v2.4M17.5 18v2.4"/></svg>衣橱
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c-1 2-3 2.6-3 5a3 3 0 0 0 6 0c0-2.4-2-3-3-5Z"/><path d="M9 8v4l-2.5 8a2 2 0 0 0 1.9 2.6h7.2a2 2 0 0 0 1.9-2.6L15 12V8"/></svg>衣橱
     </div>
     <div class="bn" data-view="chat" onclick="showView('chat')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 0 1 4 17.2c-.9.4-1.8.5-3 .5H4l1.5-3A9 9 0 0 1 12 3Z"/><path d="M8 10h8M8 14h5"/></svg>对话
@@ -1158,7 +2370,7 @@ body.gate .topbar{display:none}
       <label>个人头像 <span class="opt">点击更换，可不改</span></label>
       <div class="pf-avatar-row">
         <div class="pf-avatar-box" id="pf-avatar-box" onclick="pickPfAvatar(event)" title="点击上传头像">
-          <img id="pf-avatar-img" src="mascot.png" alt="头像预览" />
+          <img id="pf-avatar-img" src="brand/mascot-front-cut.png" alt="头像预览" />
         </div>
         <div style="flex:1">
           <div style="font-size:13px;font-weight:600;color:var(--ink-2)">上传你喜欢的图片</div>
@@ -1548,28 +2760,17 @@ function _rateOutfitId(btn, outfitId){
 function _rateSubmit(btn, kind, outfitId, tags, comment, panel){
   const label = { like:'喜欢', mid:'一般', bad:'不喜欢' }[kind];
   const rating = { like:2, mid:1, bad:0 }[kind];
-  const _outfitId = _rateOutfitId(btn, outfitId);
-  // 动态画像：把被评价搭配的单品 id 一并带上，后端据此更新具体属性偏好
-  let _itemIds = [];
-  try {
-    const _hit = (typeof outfits !== 'undefined' ? outfits : []).find(function(o){
-      return o && o.outfit_id === _outfitId;
-    });
-    _itemIds = _hit ? (_hit.items || []).map(function(it){ return it.item_id; }) : [];
-  } catch (_e) { _itemIds = []; }
   _api('/api/v1/feedback', _json({
     user_id: W_USER_ID,
     session_id: W_SESSION_ID || '',
-    outfit_id: _outfitId,
+    outfit_id: _rateOutfitId(btn, outfitId),
     rating: rating,
     tags: tags || [],
-    comment: comment || '',
-    item_ids: _itemIds
+    comment: comment || ''
   })).then(function(r){
     if (r && r.code === 0){
-      const p = (r.data && r.data.profile) || {};
-      const _n = Object.keys(p).reduce(function(s,d){ return s + Object.keys(p[d] || {}).length; }, 0);
-      toast('已记录：' + label + (_n ? '，画像已更新（' + _n + ' 项属性生效）' : '，继续评价可强化画像'));
+      const p = (r.data && r.data.preferences) || {};
+      toast('已记录：' + label + '，画像已更新（风格偏好 ' + (p.style || '-') + '/10）');
       if (panel && panel.parentNode) panel.remove();
     } else {
       toast('已记录：' + label);
@@ -2010,28 +3211,6 @@ function _fillEvalCatSelect(){
     sel.appendChild(o);
   });
   sel.value = (keep && BIG_CATS.indexOf(keep) >= 0) ? keep : '';
-  _fillEvalSubSelect(sel.value, '');
-}
-
-/* 子品类联动：数据来自 CATEGORY_TREE（与 rules/clothing_meta.json 一致）。
-   2026-11-22 实测修正：旧表单完全没有子品类入口，不上传图片时
-   sub_category 恒为空，重复度投影缺了最关键的区分维度，
-   实测「手填白衬衫」被误判成与白T恤 0.6 部分重复。 */
-function _fillEvalSubSelect(cat, keep){
-  const sel = document.getElementById('eval-sub');
-  if (!sel) return;
-  const list = (typeof CATEGORY_TREE === 'object' && CATEGORY_TREE[cat]) || [];
-  sel.innerHTML = '<option value="">未指定（按名称推断）</option>';
-  list.forEach(function(s){
-    const o = document.createElement('option');
-    o.value = s; o.textContent = s;
-    sel.appendChild(o);
-  });
-  sel.value = (keep && list.indexOf(keep) >= 0) ? keep : '';
-}
-function onEvalCatChange(){
-  const cat = document.getElementById('eval-cat');
-  _fillEvalSubSelect(cat ? cat.value : '', '');
 }
 const G_SEASON_MAP = { '春秋':'春秋','夏':'夏','冬':'冬','四季':'四季','春夏':'春秋','秋冬':'冬' };
 
@@ -2146,7 +3325,7 @@ function addMsg(who, html){
   const sc = $('#chat-scroll');
   const el = document.createElement('div');
   el.className = 'msg ' + who;
-  el.innerHTML = `<div class="msg-ava">${who==='ai'?'<img src="mascot.png" alt="遂遂" />':'我'}</div><div class="msg-bubble">${html}</div>`;
+  el.innerHTML = `<div class="msg-ava">${who==='ai'?'<img src="brand/v4/avatar.png" alt="遂遂" />':'我'}</div><div class="msg-bubble">${html}</div>`;
   sc.appendChild(el);
   sc.scrollTop = sc.scrollHeight;
   return el;
@@ -2248,11 +3427,6 @@ function _fillEvalFromAnalysis(d){
       sel.value = cat; filled.push('品类');
     }
   }
-  // 识别出的二级品类要同步回填下拉，并先按当前品类刷新可选项
-  let sub = (attrs.sub_category || '').trim();
-  if (sub && typeof SUB_ALIAS === 'object' && SUB_ALIAS[sub]) sub = SUB_ALIAS[sub];
-  _fillEvalSubSelect(document.getElementById('eval-cat').value, sub);
-  if (sub && document.getElementById('eval-sub').value) filled.push('子品类');
   if (attrs.color && Object.prototype.hasOwnProperty.call(COLOR_MAP, attrs.color)){
     evalColor = attrs.color;
     renderColorPicker('eval-color', attrs.color, function(v){ evalColor = v; });
@@ -2367,14 +3541,12 @@ async function runEval(){
 
   const targetCategory = EVAL_CAT_MAP[cat] || cat;
   const analyzedAttrs = (EVAL_ANALYZED && EVAL_ANALYZED.attrs) || {};
-  // 子品类优先取用户手选的下拉值；没有则用图片识别结果。
-  // 用户推翻自动预填的品类时，不能再提交属于旧品类的二级品类。
-  const manualSub = ($('#eval-sub') && $('#eval-sub').value || '').trim();
+  // 用户可以推翻自动预填的品类；此时不能再提交旧图片的二级品类。
   const categoryStillMatches = !analyzedAttrs.category || analyzedAttrs.category === targetCategory;
   const target = {
     name: ($('#eval-name').value || '').trim() || (cat + '·待定'),
     category: targetCategory,
-    sub_category: manualSub || (categoryStillMatches ? (analyzedAttrs.sub_category || '') : ''),
+    sub_category: categoryStillMatches ? (analyzedAttrs.sub_category || '') : '',
     color: (typeof evalColor === 'string' ? evalColor : ''),
     style: analyzedAttrs.style || '',
     fabric: analyzedAttrs.fabric || '',
@@ -2493,12 +3665,6 @@ function renderEvalResult(d, catLabel){
     + '<span class="tag">衣橱原有 ' + (r.closet_only_count || 0) + ' 套</span>'
     + '<span class="tag">' + _esc(tempText) + '</span>'
     + '</div>'
-    + (r.temperature_note
-        ? '<div class="hint" style="margin-bottom:8px;padding:8px 10px;border-radius:9px;background:#fff7e8;color:#8a5a1a;line-height:1.6">⚠ ' + _esc(r.temperature_note) + '</div>'
-        : '')
-    + (r.eval_count > 1
-        ? '<div class="hint" style="margin-bottom:8px">该单品在相同条件下已评估 ' + r.eval_count + ' 次，已更新为最近一次结论（不重复堆积历史）。</div>'
-        : '')
     + '<div class="hint" style="line-height:1.8">'
     + '评估气温：' + _esc(tempText) + '（' + _esc(tempSourceLabel) + '）<br>'
     + '重复度口径：Jaccard 相似度，' + _esc(nearestLine) + '<br>'
@@ -2741,11 +3907,7 @@ function _evalDetailHtml(r, t){
     + '<span class="tag">可搭 ' + (r.matchable_count || 0) + ' 套</span>'
     + '<span class="tag">衣橱原有 ' + (r.closet_only_count || 0) + ' 套</span>'
     + '<span class="tag">' + _esc(tempText) + '</span>'
-    + (r.eval_count > 1 ? '<span class="tag">已评估 ' + r.eval_count + ' 次</span>' : '')
     + '</div>'
-    + (r.temperature_note
-        ? '<div class="hint" style="margin-bottom:8px;padding:8px 10px;border-radius:9px;background:#fff7e8;color:#8a5a1a;line-height:1.6">⚠ ' + _esc(r.temperature_note) + '</div>'
-        : '')
     + '<div class="hint" style="line-height:1.8">'
     + '评估气温：' + _esc(tempText) + '（' + _esc(srcText) + '）<br>'
     + '重复度口径：Jaccard 相似度，' + nearestText + '<br>'
@@ -3129,8 +4291,7 @@ function _mapOutfit(o, idx){
       n: r.name,
       c: _CAT_MAP[r.category] || _CAT_L1[r.category] || 'T恤',
       col: _normColor(r.color),
-      img: r.image_url || '',  // 有图显图；为空时 renderOutfits 回退到颜色色块
-      item_id: it.item_id || '' // 动态画像：反馈时回传单品 id
+      img: r.image_url || ''   // 有图显图；为空时 renderOutfits 回退到颜色色块
     };
   });
   const reason = o.reason || {};
@@ -3196,7 +4357,7 @@ function _setBadge(text, color){
     document.body.appendChild(_badge);
   }
   _badge.textContent = text;
-  _badge.style.background = color || '#2e7d32';
+  _badge.style.background = color || '#6F5FDC';
   _syncBadgeGarmentCount();
 }
 
@@ -3248,8 +4409,13 @@ function _setWeatherCond(w){
     return;
   }
   const live = (src.indexOf('open-meteo') === 0);
+  const cond = _wxText(w.weather_code);
   const rain = (w.rain && w.rain !== '无降雨') ? w.rain : '无降雨';
-  el.textContent = (live ? '实时天气 · Open-Meteo' : '暂时无法获取实时天气') + ' · ' + rain;
+  if (cond){
+    el.textContent = cond + ' · ' + rain;
+  } else {
+    el.textContent = (live ? '实时天气' : '暂时无法获取实时天气') + ' · ' + rain;
+  }
 }
 
 /* 右侧：当前温度下方展示当天最高/最低温，缺数据时用 -- 占位 */
@@ -3261,16 +4427,15 @@ function _setWeatherRange(w){
   el.textContent = '最高 ' + hi + ' · 最低 ' + lo;
 }
 
-/* 按 WMO 天气代码输出线性图标（stroke 描边，风格与站内图标一致） */
-const _WX_ICON_BASE = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"';
+/* 按 WMO 天气代码输出卡通图标（彩色填充 + 萌脸，随天气变化切换） */
 const _WX_ICONS = {
-  sun: '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.2v2.2M12 19.6v2.2M4.2 12H2M22 12h-2.2M6.3 6.3 4.8 4.8M19.2 19.2l-1.5-1.5M19.2 4.8l-1.5 1.5M6.3 17.7l-1.5 1.5"/>',
-  cloud: '<path d="M18 18.5H7a4.2 4.2 0 0 1-.4-8.4 5.6 5.6 0 0 1 10.7 1.1A3.7 3.7 0 0 1 18 18.5Z"/>',
-  partly: '<circle cx="8.2" cy="8.4" r="3"/><path d="M8.2 2.6v1.6M3.4 8.4H1.9M4.8 4.9 3.7 3.8M11.6 4.9l1.1-1.1"/><path d="M18.4 19H9.6a3.5 3.5 0 0 1-.3-7 4.6 4.6 0 0 1 8.7.9 3.1 3.1 0 0 1 .4 6.1Z"/>',
-  rain: '<path d="M17.6 15.5H7.2a3.9 3.9 0 0 1-.4-7.8 5.2 5.2 0 0 1 9.9 1 3.4 3.4 0 0 1 .9 6.8Z"/><path d="M9 18.2 8.1 20.6M13 18.2l-.9 2.4M17 18.2l-.9 2.4"/>',
-  snow: '<path d="M17.6 14.5H7.2a3.9 3.9 0 0 1-.4-7.8 5.2 5.2 0 0 1 9.9 1 3.4 3.4 0 0 1 .9 6.8Z"/><path d="M8.5 18.4h.01M12 20.2h.01M15.5 18.4h.01M12 17.1h.01"/>',
-  thunder: '<path d="M17.4 14.2H7.6a3.8 3.8 0 0 1-.4-7.6 5.1 5.1 0 0 1 9.7 1 3.3 3.3 0 0 1 .5 6.6Z"/><path d="m13 15.4-2 3.2h2.6l-1.4 3.2"/>',
-  fog: '<path d="M6 8.4h12M4.4 12h15.2M6.6 15.6h10.8"/>'
+  sun: '<circle cx="24" cy="24" r="11" fill="#FFC94D"/><g stroke="#FFB020" stroke-width="3.4" stroke-linecap="round"><path d="M24 4.5v5.5M24 38v5.5M4.5 24H10M38 24h5.5M10.4 10.4l3.9 3.9M33.7 33.7l3.9 3.9M37.6 10.4l-3.9 3.9M14.3 33.7l-3.9 3.9"/></g><circle cx="20.6" cy="21.8" r="1.9" fill="#7A4E00"/><circle cx="27.4" cy="21.8" r="1.9" fill="#7A4E00"/><path d="M20 26.6q4 3.2 8 0" stroke="#7A4E00" stroke-width="2.2" fill="none" stroke-linecap="round"/>',
+  partly: '<g stroke="#FFB020" stroke-width="3" stroke-linecap="round"><path d="M15 4.8v4.4M4.8 15h4.4M7.4 7.4l3 3"/></g><circle cx="15" cy="15" r="8" fill="#FFC94D"/><circle cx="12.4" cy="13.4" r="1.5" fill="#7A4E00"/><circle cx="17.6" cy="13.4" r="1.5" fill="#7A4E00"/><path d="M12.6 17.4q2.4 2 4.8 0" stroke="#7A4E00" stroke-width="1.8" fill="none" stroke-linecap="round"/><path d="M18.5 41h15a7.2 7.2 0 0 0 1.4-14.3 10 10 0 0 0-19.3-2.8A6.6 6.6 0 0 0 18.5 41Z" fill="#FFFFFF" stroke="#C7CFEA" stroke-width="1.6"/><circle cx="22.5" cy="31.5" r="1.6" fill="#5B537F"/><circle cx="28.5" cy="31.5" r="1.6" fill="#5B537F"/><path d="M22.6 35.4q2.9 2.4 5.8 0" stroke="#5B537F" stroke-width="1.8" fill="none" stroke-linecap="round"/>',
+  cloud: '<path d="M14 41h20a8 8 0 0 0 1.6-15.8A11 11 0 0 0 14.2 22 7.3 7.3 0 0 0 14 41Z" fill="#E4E9FA" stroke="#BEC8EC" stroke-width="1.6"/><circle cx="20" cy="30.5" r="1.7" fill="#5B537F"/><circle cx="27" cy="30.5" r="1.7" fill="#5B537F"/><path d="M20.4 34.6q3.1 2.6 6.2 0" stroke="#5B537F" stroke-width="1.8" fill="none" stroke-linecap="round"/>',
+  rain: '<path d="M14 34h20a8 8 0 0 0 1.6-15.8A11 11 0 0 0 14.2 15 7.3 7.3 0 0 0 14 34Z" fill="#DCE4F8" stroke="#B4C0E8" stroke-width="1.6"/><g stroke="#5AA7F0" stroke-width="3" stroke-linecap="round"><path d="M17 38.5 15.4 43M24 38.5 22.4 43M31 38.5 29.4 43"/></g>',
+  snow: '<path d="M14 33h20a8 8 0 0 0 1.6-15.8A11 11 0 0 0 14.2 14 7.3 7.3 0 0 0 14 33Z" fill="#EAF0FC" stroke="#C2CFEA" stroke-width="1.6"/><g fill="#8FB8F2"><circle cx="17" cy="38" r="2.1"/><circle cx="24" cy="41.5" r="2.1"/><circle cx="31" cy="38" r="2.1"/><circle cx="20.5" cy="44" r="1.6"/><circle cx="27.5" cy="44" r="1.6"/></g>',
+  thunder: '<path d="M14 32h20a8 8 0 0 0 1.6-15.8A11 11 0 0 0 14.2 13 7.3 7.3 0 0 0 14 32Z" fill="#C9CFEA" stroke="#9FA9D4" stroke-width="1.6"/><path d="m23 30-5.5 9h5l-2.2 8 8.7-11.5h-5.2L28.5 30Z" fill="#FFC94D" stroke="#F5A623" stroke-width="1.4" stroke-linejoin="round"/>',
+  fog: '<g stroke="#A9B4D8" stroke-width="4" stroke-linecap="round"><path d="M10 16h28M7 25h30M11 34h24"/></g>'
 };
 
 function _wxKey(code){
@@ -3295,8 +4460,24 @@ function _setWeatherIcon(w){
   if (!key){
     const r = w.rain || '';
     if (r.indexOf('雨') >= 0) key = 'rain';
+    else key = 'cloud';
   }
-  box.innerHTML = key ? '<svg ' + _WX_ICON_BASE + '>' + _WX_ICONS[key] + '</svg>' : '';
+  box.innerHTML = key ? '<svg viewBox="0 0 48 48" fill="none" style="width:100%;height:100%">' + _WX_ICONS[key] + '</svg>' : '';
+}
+
+/* WMO 代码 → 中文天气名（晴 / 多云 / 小雨……） */
+const _WX_TEXT = {
+  0:'晴', 1:'晴', 2:'多云', 3:'阴',
+  45:'雾', 48:'雾',
+  51:'毛毛雨', 53:'毛毛雨', 55:'毛毛雨', 56:'冻雨', 57:'冻雨',
+  61:'小雨', 63:'中雨', 65:'大雨', 66:'冻雨', 67:'冻雨',
+  71:'小雪', 73:'中雪', 75:'大雪', 77:'雪粒',
+  80:'阵雨', 81:'阵雨', 82:'强阵雨', 85:'阵雪', 86:'阵雪',
+  95:'雷阵雨', 96:'雷阵雨', 99:'雷阵雨'
+};
+function _wxText(code){
+  const c = (code == null) ? null : Number(code);
+  return (c != null && _WX_TEXT[c] != null) ? _WX_TEXT[c] : '';
 }
 
 /* 首页日期改为真实当天。注意页面内多处同 class，必须锁定首页标题区 */
@@ -3385,15 +4566,12 @@ async function _loadRecommend(){
       wp = _weatherPayload();
     } catch (e) { wp = null; }
   }
-  // 首页推荐只是泛化预览，用最中性的「日常」档。这个场合是系统预设，
-  // 后端不会把它当成「用户提供过场合」——对话里仍会主动反问。
-  const body = { user_id: W_USER_ID, occasion: '日常' };
+  const body = { user_id: W_USER_ID, occasion: '通勤' };
   // 仍无天气时不传 weather，由后端按常用城市取；不伪造温度
   if (wp) body.weather = wp;
   const s = await _api('/api/v1/chat/session', _json(body));
   W_SESSION_ID = s.data.session_id;
-  // preview:true 让后端跳过澄清，否则首页会因缺场合只返回提问、没有搭配可展示
-  const m = await _api('/api/v1/chat/' + W_SESSION_ID + '/message', _json({ action:'recommend', payload:{ preview:true } }));
+  const m = await _api('/api/v1/chat/' + W_SESSION_ID + '/message', _json({ action:'recommend', payload:{} }));
   const outs = (m.data && m.data.outfits) || [];
   W_OUTFIT_IDS = outs.map(function(o){ return o.outfit_id; });
   // 始终以后端为准：空衣橱/无满足约束时清空旧数据，避免展示过期的演示方案
@@ -3578,7 +4756,7 @@ function renderChatOutfitReal(plan){
     + '</div></div></div>';
   const el = document.createElement('div');
   el.className = 'msg ai';
-  el.innerHTML = '<div class="msg-ava"><img src="mascot.png" alt="遂遂" /></div><div class="msg-bubble">' + html + '</div>';
+  el.innerHTML = '<div class="msg-ava"><img src="brand/v4/avatar.png" alt="遂遂" /></div><div class="msg-bubble">' + html + '</div>';
   sc.appendChild(el);
   sc.scrollTop = sc.scrollHeight;
 }
@@ -3598,26 +4776,12 @@ function _renderClarifyCard(bubble, d){
   }
   let html = '<div>'
     + '<div style="font-family:var(--serif);font-weight:600;margin-bottom:6px">先和你确认一下</div>'
-    + '<div style="font-size:13px;color:var(--ink-3)">' + _esc(d.content || '') + '</div>';
-  // 遍历 options 的所有 key 渲染 chips（occasion / temperature / vibe / cities ...），
-  // 新增澄清维度时后端只需加 key，前端无需再改。
-  Object.keys(opts).forEach(function(k){
-    if (k === 'weather_hint') return;
-    html += chips(opts[k]);
-  });
+    + '<div style="font-size:13px;color:var(--ink-3)">' + _esc(d.content || '') + '</div>'
+    + chips(opts.occasion) + chips(opts.temperature);
   if (opts.weather_hint){
     html += '<div style="margin-top:8px;font-size:12px;color:var(--ink-3)">'
       + _esc(opts.weather_hint) + '</div>';
   }
-  // 选项不保证覆盖所有场景：留一个自定义输入口，直接作为本轮回答发出
-  html += '<div style="display:flex;gap:6px;margin-top:10px">'
-    + '<input type="text" class="clarify-custom" placeholder="都不合适？输入你的场景 / 城市 / 温度" '
-    + 'style="flex:1;min-width:0;border:1px solid var(--line,#e2ddd4);border-radius:14px;'
-    + 'padding:5px 10px;font-size:13px;background:#fff;color:var(--ink-1)" />'
-    + '<button type="button" class="clarify-custom-send" '
-    + 'style="border:1px solid var(--line,#e2ddd4);border-radius:14px;padding:5px 12px;'
-    + 'font-size:13px;background:#fff;color:var(--ink-2);cursor:pointer">发送</button>'
-    + '</div>';
   html += '</div>';
   bubble.innerHTML = html;
 
@@ -3631,22 +4795,6 @@ function _renderClarifyCard(bubble, d){
       inp.value = cur ? (cur + '，' + v) : v;
       sendChat();
     });
-  });
-
-  // 自定义输入：回车或点「发送」，和点选项走同一条发送链路
-  const custom = bubble.querySelector('.clarify-custom');
-  const customSend = bubble.querySelector('.clarify-custom-send');
-  function submitClarifyCustom(){
-    const v = ((custom && custom.value) || '').trim();
-    if (!v) return;
-    const inp = document.getElementById('chat-input');
-    if (!inp) return;
-    inp.value = v;
-    sendChat();
-  }
-  if (customSend) customSend.addEventListener('click', submitClarifyCustom);
-  if (custom) custom.addEventListener('keydown', function(e){
-    if (e.key === 'Enter'){ e.preventDefault(); submitClarifyCustom(); }
   });
 }
 
@@ -3690,7 +4838,7 @@ function _renderCompareCard(d){
   html += '</div></div>';
   const el = document.createElement('div');
   el.className = 'msg ai';
-  el.innerHTML = '<div class="msg-ava"><img src="mascot.png" alt="遂遂" /></div><div class="msg-bubble">' + html + '</div>';
+  el.innerHTML = '<div class="msg-ava"><img src="brand/v4/avatar.png" alt="遂遂" /></div><div class="msg-bubble">' + html + '</div>';
   sc.appendChild(el);
   sc.scrollTop = sc.scrollHeight;
 }
@@ -4164,13 +5312,13 @@ resetChat = function(){
 
 /* ---------- 引导启动 ---------- */
 async function _boot(){
-  _setBadge('正在连接后端…', '#616161');
+  _setBadge('正在连接后端…', '#8B79F0');
   try {
     _setDate();
     const auth = await _ensureUser();
     if (!auth || !auth.ok){
       // 没有有效登录态：停在登录页，不再自动创建账号
-      _setBadge('请先登录', '#616161');
+      _setBadge('请先登录', '#8B79F0');
       showView('auth');
       return;
     }
@@ -4182,7 +5330,7 @@ async function _boot(){
     try { oCount = await _loadRecommend(); } catch (e) { oCount = 0; }
     const live = (w && w.source && w.source.indexOf('open-meteo') === 0);
     _setBadge('后端已连接 · 衣物 ' + gCount + ' 件 · 推荐 ' + oCount + ' 套 · 天气 ' +
-      (live ? '实时' : '降级'), '#2e7d32');
+      (live ? '实时' : '降级'), '#6F5FDC');
     // 演示环境：启动即自动注册，跳过登录页；资料未完善才进入首次引导
     var ready = !!(window.W_GENDER && window.W_CITY);
     try { if (typeof showView === 'function') showView(ready ? 'home' : 'setup'); } catch (e) {}
@@ -4409,33 +5557,17 @@ async function _loadMeStats(){
     if (statEl) statEl.textContent = '统计加载失败：' + (e && e.message ? e.message : '网络错误');
   }
 
-  // 动态画像：优先展示 top 属性值（如 蓝 +3 / 简约 +4）；无画像时回落旧五维分数
+  // 颜色偏好：读后端长期偏好（五维 0-10 评分），不再硬编码颜色词
   try {
     const p = await _api('/api/v1/user/preferences?user_id=' + encodeURIComponent(uid), {});
     const d = (p && p.data) || {};
     if (colorEl){
-      const profile = d.profile || {};
-      const rows = [];
-      Object.keys(profile).forEach(function(dim){
-        const bucket = profile[dim] || {};
-        Object.keys(bucket).forEach(function(v){
-          rows.push({dim:dim, v:v, w:bucket[v]});
-        });
-      });
-      rows.sort(function(a,b){ return Math.abs(b.w) - Math.abs(a.w); });
-      if (rows.length) {
-        colorEl.innerHTML = rows.slice(0,6).map(function(r){
-          const sign = r.w > 0 ? '+' : '';
-          return '<span class="tag">' + r.v + ' ' + sign + Number(r.w).toFixed(1) + '</span>';
-        }).join('');
-      } else {
-        const score = (typeof d.color === 'number') ? d.color : null;
-        const label = score == null ? '未统计'
-          : (score >= 7 ? '颜色偏好积极' : score >= 5 ? '颜色偏好中性' : '颜色偏好保守');
-        colorEl.innerHTML = '<span class="tag">' + label + '</span>'
-          + '<span class="tag">颜色 ' + (score == null ? '—' : score.toFixed(1)) + ' / 10</span>'
-          + '<span class="tag">风格 ' + (typeof d.style === 'number' ? d.style.toFixed(1) : '—') + ' / 10</span>';
-      }
+      const score = (typeof d.color === 'number') ? d.color : null;
+      const label = score == null ? '未统计'
+        : (score >= 7 ? '颜色偏好积极' : score >= 5 ? '颜色偏好中性' : '颜色偏好保守');
+      colorEl.innerHTML = '<span class="tag">' + label + '</span>'
+        + '<span class="tag">颜色 ' + (score == null ? '—' : score.toFixed(1)) + ' / 10</span>'
+        + '<span class="tag">风格 ' + (typeof d.style === 'number' ? d.style.toFixed(1) : '—') + ' / 10</span>';
     }
   } catch (e) {
     if (colorEl) colorEl.innerHTML = '<span class="tag">偏好加载失败</span>';
@@ -4508,7 +5640,7 @@ async function _syncAfterProfileSave(){
       const badge = document.getElementById('backend-badge');
       if (badge){
         const n = (document.getElementById('outfit-grid') || {}).children;
-        _setBadge(badge.textContent.replace(/推荐 \d+ 套/, '推荐 ' + ((n && n.length) || 0) + ' 套'), '#2e7d32');
+        _setBadge(badge.textContent.replace(/推荐 \d+ 套/, '推荐 ' + ((n && n.length) || 0) + ' 套'), '#6F5FDC');
       }
     } catch (e) { /* 推荐失败不影响资料保存结果 */ }
   } catch (e) { /* 天气失败保留原卡片 */ }
@@ -4717,6 +5849,73 @@ window.addEventListener('DOMContentLoaded', function(){
   _boot().then(_hookRefresh).then(_loadProfileUI).catch(function(){});
 });
 
+</script>
+
+<script>
+/* ===== v5：首页时尚资讯板块（读 /api/v1/fashion/inspo，Vogue/ELLE 采集数据） ===== */
+(function(){
+  function _tEsc(s){
+    return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  async function loadTrend(){
+    var row = document.getElementById('js-trend-row');
+    if (!row) return;
+    // 首屏接口可能尚未就绪，稍等登录态建立后再拉
+    try {
+      var r = await _api('/api/v1/fashion/inspo?limit=12');
+      var items = (r && r.data && r.data.items) || [];
+      if (!items.length){
+        row.innerHTML = '<div class="js-trend-loading">资讯正在采集中，下次再来逛逛～</div>';
+        return;
+      }
+      var SHOW = 3; // 首屏只展示 3 条，其余收进「更多」
+      row.innerHTML = items.map(function(it, idx){
+        var src = String(it.source || '').toUpperCase() || 'TREND';
+        var tags = (it.tags && it.tags.length) ? _tEsc(it.tags.slice(0,2).join(' · ')) : '';
+        return '<div class="js-trend-card' + (idx >= SHOW ? ' is-more' : '') + '"'
+          + (it.link ? ' data-link="' + _tEsc(it.link) + '"' : '')
+          + ' title="' + _tEsc(it.title) + '">'
+          + (it.image ? '<img src="' + _tEsc(it.image) + '" alt="" loading="lazy" '
+              + 'onerror="this.style.visibility=\'hidden\'" />' : '')
+          + '<div class="tt"><div class="t">' + _tEsc(it.title) + '</div>'
+          + '<div class="s"><b>' + _tEsc(src) + '</b>' + tags + '</div></div>'
+          + '</div>';
+      }).join('') + (items.length > SHOW
+        ? '<button class="js-trend-more" type="button">更多资讯 ↓（还有 ' + (items.length - SHOW) + ' 条）</button>'
+        : '');
+      row.querySelectorAll('.js-trend-card[data-link]').forEach(function(c){
+        c.addEventListener('click', function(){
+          window.open(c.getAttribute('data-link'), '_blank', 'noopener');
+        });
+      });
+      var btn = row.querySelector('.js-trend-more');
+      if (btn){
+        btn.addEventListener('click', function(){
+          var folded = row.querySelector('.js-trend-card.is-more');
+          if (folded){
+            row.querySelectorAll('.js-trend-card.is-more').forEach(function(c){
+              c.classList.add('expanded');
+            });
+            btn.textContent = '收起 ↑';
+          } else {
+            row.querySelectorAll('.js-trend-card.expanded').forEach(function(c){
+              c.classList.remove('expanded');
+            });
+            btn.textContent = '更多资讯 ↓（还有 ' + (items.length - SHOW) + ' 条）';
+          }
+        });
+      }
+    } catch (e) {
+      row.innerHTML = '<div class="js-trend-loading">资讯加载失败，稍后再试试～</div>';
+    }
+  }
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(loadTrend, 1200); });
+  } else {
+    setTimeout(loadTrend, 1200);
+  }
+})();
 </script>
 </body>
 </html>
