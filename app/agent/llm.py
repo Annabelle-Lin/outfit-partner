@@ -535,9 +535,12 @@ def analyze_image(image_b64: str, mime: str = "image/jpeg") -> dict[str, Any] | 
     prompt = (
         "你是服装识别助手。请识别图中这件衣物，只输出 JSON，不要任何解释文字。"
         '格式：{"category":"上装|下装|外套|连衣裙|鞋|配饰",'
-        '"sub_category":"具体品类如衬衫/针织衫/直筒裤","color":"主色中文",'
-        '"season":"春秋|夏|冬|四季","fabric":"棉|羊毛|牛仔|皮革|涤纶|未知",'
-        '"style":"简约|休闲|正式|运动|甜美|复古"}'
+        '"sub_category":"具体品类如衬衫/针织衫/直筒裤",'
+        '"color":"主色中文",'
+        '"season":"春|夏|秋|冬|春秋|四季",'
+        '"fabric":"棉|麻|丝|毛|化纤|混纺|牛仔|皮革|针织|雪纺|灯芯绒|未知",'
+        '"style":"基础款|设计款|复古|简约|休闲|通勤|运动|甜美|中性"}'
+        "。season 和 fabric 只能从给定枚举中选一个字面值，不得自造（如「冬季」「羊毛」均不合法）。"
     )
     payload = {
         "model": config.ZHIPU_VISION_MODEL,

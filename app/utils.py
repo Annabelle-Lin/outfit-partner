@@ -146,3 +146,105 @@ def recompute_preferences(records: list[dict]) -> dict:
         for k in PREF_KEYS:
             prefs[k] += int(delta.get(k, 0))
     return {k: int(clamp(v, 1, 10)) for k, v in prefs.items()}
+
+
+# ---------------------------------------------------------------------------
+# 动态用户画像（2026-11-24）
+#
+# 与上面五维标量分并存的新层：画像存「具体属性值 → 权重」，可增可减，
+# 读取时按半衰期衰减。知识库第五节原本的设计，之前实现简化成了标量分。
+# ---------------------------------------------------------------------------
+PROFILE_DIMS = ("color", "style", "fabric", "fit_snug")
+PROFILE_MAX_PER_DIM = 5      # 每维只留 top5 属性，防膨胀
+PROFILE_MIN_ABS = 2          # |有效权重|<2 视为中性，不进 S003
+PROFILE_HALF_LIFE = 30       # 半衰期 30 天（Vivian 2026-11-24 拍板）
+
+
+def profile_attrs(outfit_items: list[dict]) -> set[str]:
+    """从一套搭配里抽可入画像的属性值（带维度前缀，如 color:蓝）。
+
+    只取 PROFILE_DIMS，复用 garment_profile.attribute_set 的归一口径，
+    缺失字段自然不产生属性，不做臆造。
+    """
+    from app.agent.garment_profile import attribute_set
+
+    from app.agent.garment_profile import normalize_fabric
+
+    out: set[str] = set()
+    dims = set(PROFILE_DIMS)
+    for item in outfit_items or []:
+        attrs = attribute_set(item, dims)
+        # attribute_set 的 fabric 未归一（判重口径要保留原值），
+        # 画像必须归一，否则「纯棉」「棉」会裂成两个属性。
+        attrs = {a for a in attrs if not a.startswith("fabric:")}
+        fabric = normalize_fabric((item or {}).get("fabric"))
+        if fabric and "fabric" in dims:
+            attrs.add(f"fabric:{fabric}")
+        out |= attrs
+    return out
+
+
+def decay_weight(w: int | float, last: str | None,
+                 now: datetime | None = None,
+                 half_life: int = PROFILE_HALF_LIFE) -> float:
+    """时间衰减：w × 0.5^(age_days/H)。last 缺省或解析失败时按新近处理。"""
+    age = 0.0
+    if last:
+        try:
+            t = datetime.fromisoformat(str(last).replace("Z", ""))
+            age = max(0.0, ((now or datetime.utcnow()) - t).total_seconds() / 86400)
+        except (ValueError, TypeError):
+            age = 0.0
+    return float(w) * (0.5 ** (age / half_life))
+
+
+def apply_profile_delta(profile: dict, attrs: set[str], step: int,
+                        now: datetime | None = None) -> dict:
+    """把一次反馈的属性增减写进画像。
+
+    - step: +1 喜欢 / −1 不喜欢；
+    - 每个命中属性权重裁剪到 −5~+5，更新 last；
+    - 每维只留 top5；阈值过滤交给 effective_profile 在读取时做，
+      不能在这里做——否则 w=1 的属性刚写入就被丢，永远累积不起来。
+    """
+    out = {d: dict(vals) for d, vals in (profile or {}).items()
+           if d in PROFILE_DIMS}
+    stamp = (now or datetime.utcnow()).isoformat(timespec="seconds")
+    for attr in attrs or set():
+        dim, _, value = str(attr).partition(":")
+        if dim not in PROFILE_DIMS or not value:
+            continue
+        bucket = out.setdefault(dim, {})
+        cur = bucket.get(value) or {"w": 0, "last": stamp}
+        w = int(clamp(int(cur.get("w", 0)) + step, -5, 5))
+        if w == 0:
+            bucket.pop(value, None)
+        else:
+            bucket[value] = {"w": w, "last": stamp}
+    for dim, bucket in out.items():
+        keep = sorted(
+            bucket.items(),
+            key=lambda kv: abs(decay_weight(kv[1].get("w", 0), kv[1].get("last"), now)),
+            reverse=True,
+        )[:PROFILE_MAX_PER_DIM]
+        out[dim] = dict(keep)
+    return {d: v for d, v in out.items() if v}
+
+
+def effective_profile(profile: dict, now: datetime | None = None) -> dict:
+    """读取画像：只返回有效权重达标的属性，带衰减后的 eff 值。
+
+    返回结构 {"color": {"蓝": 2.4, ...}, ...}，供 S003 逐值匹配。
+    """
+    out: dict[str, dict[str, float]] = {}
+    for dim, bucket in (profile or {}).items():
+        if dim not in PROFILE_DIMS:
+            continue
+        vals = {}
+        for value, rec in bucket.items():
+            eff = decay_weight(rec.get("w", 0), rec.get("last"), now)
+            if abs(eff) + 1e-6 >= PROFILE_MIN_ABS:
+                vals[value] = round(eff, 2)
+        if vals:
+            out[dim] = vals
+    return out

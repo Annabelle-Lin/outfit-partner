@@ -222,15 +222,20 @@ def reset_preferences(user_id: str, db: Session = Depends(get_db)):
     user.pref_comfort = 5
     user.pref_occasion = 5
     user.pref_fabric = 5
+    user.profile_prefs = {}   # 动态画像一并清空
     db.commit()
     db.refresh(user)
-    return ok(data=schemas.Preferences(
+    data = schemas.Preferences(
         color=user.pref_color,
         style=user.pref_style,
         comfort=user.pref_comfort,
         occasion=user.pref_occasion,
         fabric=user.pref_fabric,
-    ).model_dump())
+    ).model_dump()
+    # 动态画像（新增字段，旧前端忽略即可）
+    data["profile"] = utils.effective_profile(user.profile_prefs or {})
+    data["profile_raw"] = user.profile_prefs or {}
+    return ok(data=data)
 
 
 @router.delete("/data", response_model=schemas.APIResponse)
@@ -282,10 +287,14 @@ def get_preferences(user_id: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.user_id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
-    return ok(data=schemas.Preferences(
+    data = schemas.Preferences(
         color=user.pref_color,
         style=user.pref_style,
         comfort=user.pref_comfort,
         occasion=user.pref_occasion,
         fabric=user.pref_fabric,
-    ).model_dump())
+    ).model_dump()
+    # 动态画像（新增字段，旧前端忽略即可）
+    data["profile"] = utils.effective_profile(user.profile_prefs or {})
+    data["profile_raw"] = user.profile_prefs or {}
+    return ok(data=data)

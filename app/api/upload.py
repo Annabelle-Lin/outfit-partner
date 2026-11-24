@@ -23,6 +23,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from app import config
 from app.agent import llm
+from app.agent.garment_profile import canonicalize_item
 from app.api import ok
 
 router = APIRouter()
@@ -203,6 +204,12 @@ async def analyze_image(file: UploadFile = File(...)):
             got = None
         if got:
             attrs = {k: v for k, v in got.items() if isinstance(v, str) and v.strip()}
+            # 2026-11-23 口径闸门（黑色羊毛大衣事故复盘）：LLM 输出的
+            # 「冬季/深色/羊毛」等自由文本原样穿透，导致评估 target 与
+            # 衣橱录入值口径分裂、判重永远失配。识别结果在返回前统一
+            # 归一到 clothing_meta 规范枚举，被纠正字段记录在
+            # attrs["_canonicalized"]，前端可如实展示。
+            canonicalize_item(attrs, strict=True)
             source = "llm"
             degraded = False
         else:
