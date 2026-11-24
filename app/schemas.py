@@ -227,6 +227,9 @@ class FeedbackSubmit(BaseModel):
     rating: int = Field(..., ge=0, le=2)
     tags: list[str] = Field(default_factory=list)
     comment: str = ""
+    # 动态画像用：被评价搭配的单品 id。前端能取到时带上；
+    # 缺省时画像层跳过，五维标量逻辑照旧，兼容老前端。
+    item_ids: list[str] = Field(default_factory=list)
 
 
 # ---------- 购前评估 ----------
@@ -252,6 +255,23 @@ class TargetItem(BaseModel):
     formality_level: int | None = None
     season: str = ""
 
+    @field_validator("warmth_level", "formality_level")
+    @classmethod
+    def _level_range(cls, v: int | None) -> int | None:
+        """2026-11-22 实测修正：旧实现零校验，warmth_level=9 直接进引擎，
+        折算度数与 F014 判断全部失真。越界值视为「未填写」交回推断，
+        而不是抛 422——图片识别降级时前端会传 0/null，硬拦会打挂。"""
+        if v is None:
+            return None
+        if not isinstance(v, int) or isinstance(v, bool) or not 1 <= v <= 5:
+            return None
+        return v
+
+    @field_validator("sub_category")
+    @classmethod
+    def _sub_len(cls, v: str) -> str:
+        return (v or "").strip()[:40]
+
 
 class PurchaseEvaluateRequest(BaseModel):
     user_id: str
@@ -260,3 +280,21 @@ class PurchaseEvaluateRequest(BaseModel):
     season: str = ""
     temperature: float | None = None
     city: str = ""
+
+    @field_validator("temperature")
+    @classmethod
+    def _temp_range(cls, v: float | None) -> float | None:
+        """气温合理性：穿搭评估的有效区间取 -40~45℃，已覆盖有人居住区
+        的极端天气并留足余量。越界值视为「未填写」，回落到城市/季节估算
+        并如实标注来源，不把 50℃ 这类明显误填当成实时/用户确认气温，
+        也不硬抛 422 打挂图片识别降级链路。
+
+        2026-11-23 修正：旧区间 -60~55℃ 与注释自相矛盾，50℃ 仍被
+        原样采信（src=user），导致 F002/F015 在虚高气温下误杀厚单品。
+        """
+        if v is None:
+            return None
+        if not isinstance(v, (int, float)) or isinstance(v, bool):
+            return None
+        fv = float(v)
+        return fv if -40.0 <= fv <= 45.0 else None

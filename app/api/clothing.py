@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app import schemas, security, utils
 from app.agent.engine import rule_repo
+from app.agent.garment_profile import canonicalize_item
 from app.api import ok
 from app.db import ClothingItem, User, get_db
 
@@ -260,18 +261,28 @@ def create_item(req: schemas.ClothingItemCreate, user_id: str, db: Session = Dep
     _validate_item_fields(req.category, req.sub_category,
                           req.warmth_level, req.formality_level)
 
+    # 2026-11-23 口径闸门：入库前统一归一到 clothing_meta 规范枚举
+    # （季节/面料/颜色/子品类别名），任何入口（表单/Excel 导入）共用。
+    payload = canonicalize_item({
+        "season": req.season,
+        "fabric": req.fabric,
+        "color": req.color,
+        "color_brightness": req.color_brightness,
+        "sub_category": req.sub_category,
+    }, strict=False)
+
     item = ClothingItem(
         item_id=utils.gen_id("i"),
         user_id=user_id,
         name=req.name,
         category=req.category,
-        sub_category=req.sub_category,
-        color=req.color,
-        color_brightness=req.color_brightness,
-        season=req.season,
+        sub_category=payload["sub_category"],
+        color=payload["color"],
+        color_brightness=payload["color_brightness"],
+        season=payload["season"],
         fit_snug=req.fit_snug,
         fit_silhouette=req.fit_silhouette,
-        fabric=req.fabric,
+        fabric=payload["fabric"],
         style=req.style,
         occasion=req.occasion,
         warmth_level=req.warmth_level,
@@ -383,6 +394,9 @@ def update_item(item_id: str, req: schemas.ClothingItemUpdate, request: Request,
         update_data.get("warmth_level", item.warmth_level),
         update_data.get("formality_level", item.formality_level),
     )
+
+    # 2026-11-23 口径闸门：编辑同样过规范枚举归一，与新增保持一致。
+    canonicalize_item(update_data, strict=False)
 
     for k, v in update_data.items():
         setattr(item, k, v)

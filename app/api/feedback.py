@@ -40,6 +40,33 @@ def submit_feedback(req: schemas.FeedbackSubmit, db: Session = Depends(get_db)):
     # 2.3 记下这条反馈到底改了什么，撤销时才能反向回退
     # 注意：delta 必须在 tags 合并之后计算，否则标签信息进不了偏好。
     delta = utils.preference_delta(req.rating, tags)
+
+    # 动态画像：从被评价搭配的单品抽具体属性值，按喜欢/不喜欢增减权重。
+    # 前端没带 item_ids 时跳过（老前端兼容），属性为空时也不写空壳。
+    from app.db import ClothingItem
+    profile_attrs: set[str] = set()
+    if req.item_ids:
+        rows = (db.query(ClothingItem)
+                .filter(ClothingItem.item_id.in_(req.item_ids),
+                        ClothingItem.user_id == req.user_id).all())
+        profile_attrs = utils.profile_attrs([{
+            "category": r.category, "sub_category": r.sub_category,
+            "color": r.color, "fabric": r.fabric, "style": r.style,
+            "fit_snug": r.fit_snug, "fit_silhouette": r.fit_silhouette,
+            "warmth_level": r.warmth_level,
+        } for r in rows])
+    # rating 2=喜欢→+1，0=不喜欢→−1，1=一般→不动画像
+    profile_step = {2: 1, 0: -1}.get(req.rating, 0)
+    profile_delta = None
+    if profile_attrs and profile_step:
+        before = dict(user.profile_prefs or {})
+        after = utils.apply_profile_delta(before, profile_attrs, profile_step)
+        user.profile_prefs = after
+        profile_delta = {
+            "attrs": sorted(profile_attrs), "step": profile_step,
+            "before": before, "after": after,
+        }
+
     record.evidence = {
         "delta": delta,
         "rating": req.rating,
@@ -47,6 +74,7 @@ def submit_feedback(req: schemas.FeedbackSubmit, db: Session = Depends(get_db)):
         "manual_tags": manual_tags,
         "auto_tags": auto_tags,
         "comment": req.comment,
+        "profile_delta": profile_delta,
     }
     db.flush()
 
@@ -58,6 +86,7 @@ def submit_feedback(req: schemas.FeedbackSubmit, db: Session = Depends(get_db)):
         "record_id": record.record_id,
         "evidence": record.evidence,
         "preferences": prefs,
+        "profile": utils.effective_profile(user.profile_prefs or {}),
     })
 
 
@@ -149,6 +178,11 @@ def undo_feedback(record_id: str, user_id: str, request: Request,
     evidence["undone"] = True
     evidence["undone_at"] = utils.now_str()
     rec.evidence = evidence
+    # 动态画像回退：用证据里存的 before 快照精确还原，
+    # 不用反向扣 step（反向扣会被后续其它反馈的累积干扰）。
+    pd = evidence.get("profile_delta")
+    if pd and pd.get("before") is not None:
+        user.profile_prefs = pd["before"]
     db.flush()
     after = _apply_recompute(db, user)
     db.commit()

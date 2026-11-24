@@ -131,7 +131,8 @@ def _recent_history(db: Session, session_id: str, turns: int | None = None,
 
 # ---------- 2.2 主动澄清 ----------
 _OCCASION_WORDS = ("通勤", "上班", "职场", "约会", "面试", "婚礼", "出差", "聚会",
-                   "运动", "健身", "正式", "休闲", "度假", "逛街", "见家长")
+                   "运动", "健身", "正式", "休闲", "度假", "逛街", "见家长",
+                   "旅游", "旅行", "出游")
 _CATEGORY_WORDS = ("上装", "下装", "外套", "连衣裙", "鞋", "配饰", "衬衫", "T恤",
                    "毛衣", "针织", "裤", "裙", "风衣", "大衣", "西装", "卫衣")
 _COLOR_WORDS = ("黑", "白", "灰", "红", "蓝", "绿", "黄", "棕", "米", "粉", "紫", "卡其", "藏青")
@@ -139,22 +140,57 @@ _COLOR_WORDS = ("黑", "白", "灰", "红", "蓝", "绿", "黄", "棕", "米", "
 
 _WEATHER_WORDS = ("度", "℃", "°", "冷", "热", "凉", "下雨", "雨", "晴", "雪", "暖和")
 
+# 氛围模糊词：用户给的是跨维度的氛围描述，无法直接落位到颜色/材质/款式中的
+# 任一单一维度。命中后应反问「你想的是哪种」，而不是硬猜成某个临时偏好。
+# 例：「温柔」可能是颜色浅、材质柔、或换成裙子/外套 —— 三者的推荐方向完全不同。
+_VIBE_WORDS = ("温柔", "柔和", "清爽", "可爱", "知性", "舒服", "慵懒", "文艺", "淑女", "仙气")
+
+
+def _detect_vibe(text: str) -> str | None:
+    """从文本里抽出氛围模糊词；命中返回该词，否则 None。"""
+    t = (text or "").strip()
+    return next((w for w in _VIBE_WORDS if w in t), None)
+
+
+def _has_explicit_dimension(text: str) -> bool:
+    """判断这句话里是否已经给了可落位的明确维度（颜色/品类/场合/温度）。
+
+    有明确维度时，「温柔」就不再是唯一模糊点，不追问，避免啰嗦。
+    """
+    t = (text or "").strip()
+    return bool(
+        any(w in t for w in _COLOR_WORDS)
+        or any(w in t for w in _CATEGORY_WORDS)
+        or any(w in t for w in _OCCASION_WORDS)
+        or any(w in t for w in _WEATHER_WORDS)
+    )
+
+
+def _occasion_confirmed(session: ChatSession) -> bool:
+    """场合是否是「用户明确提供过」的。
+
+    首页预览会往 session 里写默认场合（「日常」/旧版「通勤」），那是系统预设，
+    不是用户说的。因此绝不能拿 session.occasion 是否有值来判断该不该反问——
+    唯一可信的依据是这个由用户回答/自带场合词时才写入的标记。
+    """
+    return bool((session.constraints or {}).get("occasion_confirmed"))
+
 
 def _clarify_needs(text: str, session: ChatSession) -> list[str]:
-    """2.2 判断这次推荐前该不该先反问，并说明缺什么。
+    """2.2 判断这次【对话推荐】前该不该先反问，并说明缺什么。
 
-    真正的「信息不足」只有两种：缺场合、缺温度。
-    天气能自动取到实时值时温度不算缺，但场合没给过、这句话里也没线索时仍该问一句，
-    否则就是替用户凭空假设「通勤」。
+    场合：唯一标准是「用户有没有提供过场合信息」——
+      · 用户在本对话里回答过场合 → occasion_confirmed=True，不再问；
+      · 这句话自带场合词 → 交给回收段落位，不用问；
+      · 除此之外一律反问，包括：会话残留首页预设场合、已经展示过方案、
+        文本很长但通篇没提场合。系统绝不替用户凭空定场合。
+
+    温度：保持原逻辑，天气未知且本句没给温度/城市时反问。
+    首页预览走 payload.preview，不进本函数。
     """
-    if session.shown_outfit_ids:
-        return []
     t = (text or "").strip()
-    if len(t) >= 24:
-        return []
-
     needs: list[str] = []
-    if not (session.occasion or "").strip() and not any(w in t for w in _OCCASION_WORDS):
+    if not _occasion_confirmed(session) and not any(w in t for w in _OCCASION_WORDS):
         needs.append("occasion")
     if session.weather_temp is None and not any(w in t for w in _WEATHER_WORDS):
         needs.append("weather")
@@ -197,13 +233,16 @@ def _clarify_response(session: ChatSession, needs: list[str] | None = None) -> d
     options: dict = {}
     parts: list[str] = []
     if "occasion" in needs:
-        options["occasion"] = ["通勤", "约会", "出差", "面试", "休闲", "聚会"]
+        options["occasion"] = ["通勤", "约会", "出差", "面试", "休闲", "聚会", "旅游"]
         parts.append("今天是什么场合")
     if "weather" in needs:
         options["temperature"] = ["10℃以下", "10-18℃", "18-25℃", "25℃以上"]
         options["weather_hint"] = "也可以直接说城市，我来取实时温度"
         parts.append("大概多少度或哪个城市")
     question = "想给你搭得准一点，先确认：" + "；".join(parts) + "？"
+    # 记住这轮在等澄清：下一句即使不是枚举词（如「看演唱会」「朋友生日宴」），
+    # 也要当作回答落位，否则选项没覆盖的场景会无限反问。
+    _set_constraint(session, "clarify_pending", {"missing": needs})
     return {
         "message_id": utils.gen_id("m"),
         "role": "agent",
@@ -222,9 +261,8 @@ def _clarify_response(session: ChatSession, needs: list[str] | None = None) -> d
 def _travel_clarify_response(session: ChatSession, text: str = "") -> dict:
     """旅游场景缺目的地时反问：去哪个城市、玩几天。"""
     days = _extract_travel_days(text)
-    session.constraints = session.constraints or {}
-    session.constraints["travel_pending"] = True
-    session.constraints["travel_days"] = days
+    _set_constraint(session, "travel_pending", True)
+    _set_constraint(session, "travel_days", days)
     question = "你要去哪个城市玩？告诉我城市名（比如 厦门、北京），我按当地未来几天的天气给你搭配。"
     return {
         "message_id": utils.gen_id("m"),
@@ -239,6 +277,70 @@ def _travel_clarify_response(session: ChatSession, text: str = "") -> dict:
             "options": {"cities": ["厦门", "北京", "上海", "成都", "哈尔滨", "昆明", "三亚", "西安"]},
         },
     }
+
+
+# ---------- 2.2b 氛围澄清 ----------
+def _set_constraint(session: ChatSession, key: str, value) -> None:
+    """写会话约束。JSON 字段无 MutableDict，原地改 dict 不会触发 SQLAlchemy
+    变更跟踪、commit 会静默丢字段（vibe_pending 曾因此写不进 DB，导致澄清
+    回收失效、死循环）。统一「读副本 → 改 → 整体赋值」规避。
+    """
+    d = dict(session.constraints or {})
+    d[key] = value
+    session.constraints = d
+
+
+def _pop_constraint(session: ChatSession, key: str) -> None:
+    d = dict(session.constraints or {})
+    d.pop(key, None)
+    session.constraints = d
+
+
+# 用户给了「温柔/柔和」这类跨维度氛围词，无法确定他是要颜色浅、材质柔还是换款式，
+# 反问落位，而不是硬猜成某个临时偏好（硬猜方向常错：温柔≠设计款）。
+_VIBE_OPTIONS = ["颜色浅一点", "材质柔和一点", "款式换柔和些（如裙子/外套）", "都行，按整体氛围来"]
+
+
+def _vibe_clarify_response(session: ChatSession, vibe_word: str) -> dict:
+    question = (f"你说的「{vibe_word}」我更想先问清楚一点：你更偏向哪种方向？"
+                f"这样我能搭得更贴你的意思。")
+    return {
+        "message_id": utils.gen_id("m"),
+        "role": "agent",
+        "action": "clarify",
+        "content": question,
+        "outfits": [],
+        "remaining_count": session.remaining_count,
+        "clarify": {
+            "missing": ["vibe"],
+            "vibe_word": vibe_word,
+            "question": question,
+            "options": {"vibe": _VIBE_OPTIONS},
+        },
+    }
+
+
+def _apply_vibe_answer(session: ChatSession, text: str) -> str | None:
+    """把用户对氛围追问的回答映射到临时偏好/约束；返回命中的落位方向，未命中 None。
+
+    - 颜色浅一点    -> temp_pref_color = 亮色（现成槽位，立即生效）
+    - 材质柔和一点  -> constraints.vibe_note（带进 LLM 上下文，引擎无面料偏好槽位）
+    - 款式换柔和些  -> constraints.vibe_note（同上）
+    - 都行          -> 不落位，返回 "overall"，把「温柔」留给 LLM 自由发挥
+    """
+    t = (text or "").strip()
+    if any(w in t for w in ("颜色", "浅", "亮", "色")):
+        session.temp_pref_color = "亮色"
+        return "颜色浅一点"
+    if any(w in t for w in ("材质", "面料", "料子")):
+        _set_constraint(session, "vibe_note", "材质要柔和（棉、麻、丝、针织等亲肤面料优先）")
+        return "材质柔和一点"
+    if any(w in t for w in ("款式", "裙子", "裙", "外套", "大衣", "换")):
+        _set_constraint(session, "vibe_note", "往柔和款式方向改（如裙子、开衫、垂坠感单品）")
+        return "款式换柔和些"
+    if any(w in t for w in ("都行", "整体", "氛围", "随便", "都行", "随意")):
+        return "overall"
+    return None
 
 
 # ---------- 2.4 反事实对比 ----------
@@ -1049,8 +1151,10 @@ def _parse_free_text(text: str) -> tuple[str, dict]:
         return "temp_pref_color", {"color": "暗色"}
     if "基础" in text or "简单" in text:
         return "temp_pref_style", {"style": "基础款"}
-    if "设计" in text or "特别" in text or "温柔" in text:
+    if "设计" in text or "特别" in text:
         return "temp_pref_style", {"style": "设计款"}
+    # 「温柔/柔和」等氛围词不再落到这里（已改为走 2.2b 氛围澄清），
+    # 落回 free_text 由上层 _detect_vibe 接管，避免被误判成「设计款」。
 
     return "free_text", {"text": text}
 
@@ -1134,6 +1238,7 @@ def _run_recommend(db: Session, request: Request, session: ChatSession, user: Us
             "occasion": user.pref_occasion,
             "fabric": user.pref_fabric,
         },
+        user_profile=utils.effective_profile(user.profile_prefs or {}),
     )
     result = engine.recommend(ctx, item_dicts)
     outfits = result.get("outfits", [])
@@ -1684,6 +1789,7 @@ def _make_ctx(session, user) -> RecommendContext:
             "comfort": user.pref_comfort, "occasion": user.pref_occasion,
             "fabric": user.pref_fabric,
         },
+        user_profile=utils.effective_profile(user.profile_prefs or {}),
     )
 
 
@@ -1703,19 +1809,30 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
     action = req.action
     payload = req.payload or {}
 
+    # 上一轮刚问过澄清：这一句就是回答，不能被意图分流抢先判成域外拒答。
+    # 「旅游」「看演唱会」都不含穿搭词，裸分类必挂，必须先放行给回收段。
+    _awaiting_clarify = bool((session.constraints or {}).get("clarify_pending"))
+
     # 1.5 意图分流收到后端单点：前端只传原文（action="auto"）时由后端统一判定
     # 固定名字呼唤 / 人设问答走预设答案，不参与关键词或 LLM 分类。
     preset_answer = _preset_answer(payload.get("text", ""))
     other_name_call = _detect_other_name_call(payload.get("text", ""))
-    if preset_answer:
+    if _awaiting_clarify and action == "auto":
+        # 正在等澄清回答：跳过预设/呼唤/域外三类短路，原文一律先当回答处理。
+        # 「看演唱会」会被 _detect_other_name_call 误判成 name-call 直接拒答。
+        action = "free_text"
+    elif preset_answer:
         action = "persona"
     elif other_name_call:
         action = "off_topic"
     elif action == "auto":
         action = _classify_intent(payload.get("text", ""))
+        if _awaiting_clarify and action in ("off_topic", "knowledge", "free_text", "echo"):
+            action = "free_text"
         # 能力白名单门禁：本地没明确在域/域外的模糊问题，让 LLM 按五项能力判一次。
         # 只拦「准备走知识问答/echo」这类会硬答的分支，结构化动作已由本地规则锁定。
-        if action in ("knowledge", "free_text") and _domain_allows(payload.get("text", "")) is False:
+        if (action in ("knowledge", "free_text") and not _awaiting_clarify
+                and _domain_allows(payload.get("text", "")) is False):
             action = "off_topic"
         if action == "refine":
             payload = {**payload, "refine": _detect_refine(payload.get("text", ""))}
@@ -1728,25 +1845,61 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
     # 常被判成 free_text。这里把场合/温度写回 session，避免下一轮又缺信息无限反问。
     # 只在尚未展示过方案时回收，避免把推荐流程里的随口一提误当成回答。
     text_now = payload.get("text", "")
-    if not session.shown_outfit_ids:
-        if not (session.occasion or "").strip():
-            _occ = _match_occasion(text_now)
-            if _occ and _classify_intent(text_now) in ("free_text", "echo"):
-                session.occasion = _occ
-                action = "recommend"
-        if session.weather_temp is None:
-            _temp = _match_temperature(text_now)
-            if _temp is not None and _classify_intent(text_now) in ("free_text", "echo"):
-                session.weather_temp = _temp
-                session.weather_source = session.weather_source or "clarify"
-                action = "recommend"
+    _pending = (session.constraints or {}).get("clarify_pending")
+    # 有一轮展示过方案后本来不做回收；但「帮我搭一套」会强制重问场合，
+    # 此时必须允许回收，否则用户答了场合却没人接，直接死循环。
+    if not session.shown_outfit_ids or _pending:
+        _missing = _pending.get("missing", []) if isinstance(_pending, dict) else []
+        if _pending:
+            _pop_constraint(session, "clarify_pending")
+        # 澄清选项里的「旅游」不能当普通场合用当前城市天气硬搭：
+        # 转旅游流程，按目的地未来天气推荐（下一步追问城市）。
+        if _pending and any(w in text_now for w in ("旅游", "旅行", "出游")):
+            action = "travel"
+        else:
+            # 场合落位：只要用户还没确认过场合，本句里的场合词/自定义场景都写回 session，
+            # 并打上 occasion_confirmed，之后不再重复反问。
+            # 不再看 session.occasion 是否有值——首页预设的「日常」不是用户提供的，
+            # 用户答「聚会」时必须能覆盖它。
+            _occ_in_text = any(w in text_now for w in _OCCASION_WORDS)
+            if not _occasion_confirmed(session) or (_pending and "occasion" in _missing):
+                _occ = _match_occasion(text_now)
+                if not _occ and _pending and "occasion" in _missing:
+                    # 选项没覆盖的自定义场景：整句落位为场合。先剥掉温度片段，
+                    # 避免「生日宴 25℃」把温度写进 occasion。
+                    _custom = re.sub(r"\s*-?\d+(?:\s*[-~到至]\s*\d+)?\s*(?:℃|°C|度)\s*", " ", text_now)
+                    _occ = _custom.strip(" ，,。！!？?、；;：:")[:30] or None
+                if _occ and (_pending or _occ_in_text
+                             or _classify_intent(text_now) in ("free_text", "echo")):
+                    session.occasion = _occ
+                    _set_constraint(session, "occasion_confirmed", True)
+                    if action in ("free_text", "echo", "recommend", "weather"):
+                        action = "recommend"
+            if session.weather_temp is None or (_pending and "weather" in _missing):
+                _temp = _match_temperature(text_now)
+                if _temp is not None and (_pending or _classify_intent(text_now) in ("free_text", "echo")):
+                    session.weather_temp = _temp
+                    session.weather_source = session.weather_source or "clarify"
+                    if action in ("free_text", "echo", "recommend", "weather"):
+                        action = "recommend"
+
+    # 氛围澄清回收：上一轮问了「温柔想的是哪种」，用户答「颜色浅一点/材质柔和/换裙子」。
+    # 把落位写回临时偏好或约束，并转成推荐继续；未命中则清掉 pending 标记，不再追问。
+    _vibe_pending = bool((session.constraints or {}).get("vibe_pending"))
+    _vibe_landed = False
+    if _vibe_pending and not session.shown_outfit_ids:
+        _landed = _apply_vibe_answer(session, text_now)
+        _pop_constraint(session, "vibe_pending")
+        if _landed:
+            _vibe_landed = True
+            action = "recommend"
 
     # 旅游场景：会话级「等待目的地」状态。用户先说「想去旅游」但没给城市时反问，
     # 下一句补上城市名后，即使被判成别的意图也要回到旅游流程。
     constraints = session.constraints or {}
     travel_pending = bool(constraints.get("travel_pending"))
 
-    if travel_pending and action in ("recommend", "free_text", "knowledge", "travel"):
+    if travel_pending and action in ("recommend", "free_text", "knowledge", "travel", "off_topic", "echo"):
         action = "travel"
 
     # 记录用户消息
@@ -1783,8 +1936,10 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
     if action == "travel":
         dest = _extract_dest_city(text_now)
         if not dest:
+            # 与上面的澄清卡同理：先写 travel_pending，再提交，否则下一句补城市时收不到状态
+            _resp = _travel_clarify_response(session, text_now)
             db.commit()
-            return ok(data=_travel_clarify_response(session, text_now))
+            return ok(data=_resp)
         days = _extract_travel_days(text_now) or int(constraints.get("travel_days", 3))
         forecast = _fetch_forecast(dest, days)
         summary = forecast_summary(forecast, days) if forecast else None
@@ -1853,11 +2008,27 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
             # 保留原文：约束更新后要直接重算推荐，recommend 分支需要它生成文案
             payload = {**parsed_payload, "text": payload.get("text", "")}
 
-    # 2.2 主动澄清：首次推荐且场合/天气都缺时先反问，不凭空猜一套还照样扣额度
-    _needs = _clarify_needs(payload.get("text", ""), session) if action == "recommend" else []
+    # 2.2 主动澄清：对话推荐里只要用户没提供过场合，一律先反问——
+    # 会话残留首页预设场合、已展示过方案、文本很长，都不能成为跳过的理由。
+    # 首页预览（payload.preview=true）是泛化展示，不反问，否则首页会空白。
+    _needs = (_clarify_needs(payload.get("text", ""), session)
+              if action == "recommend" and not payload.get("preview") else [])
     if _needs:
+        # 先生成响应（内部会写 clarify_pending），再 commit。
+        # 反过来写会因参数求值顺序把标记漏在事务外，下一轮收不到澄清回答。
+        _resp = _clarify_response(session, _needs)
         db.commit()
-        return ok(data=_clarify_response(session, _needs))
+        return ok(data=_resp)
+
+    # 2.2b 氛围澄清：用户给「温柔/柔和」等模糊氛围词、且没给其他可落位的明确维度时，
+    # 反问他想的是颜色/材质/款式中的哪种，而不是硬猜成某个临时偏好。
+    # _vibe_landed：本轮刚回收完氛围回答（如「材质柔和一点」本身含「柔和」），
+    # 不再二次追问，否则死循环。
+    _vibe_word = _detect_vibe(payload.get("text", "")) if action in ("recommend", "free_text") else None
+    if _vibe_word and not _vibe_landed and not _has_explicit_dimension(payload.get("text", "")):
+        _set_constraint(session, "vibe_pending", True)
+        db.commit()
+        return ok(data=_vibe_clarify_response(session, _vibe_word))
 
     # 1.3 额度入口拦截：先校验后扣减，不再「扣到 0 还继续服务」
     cost = _quota_cost(action)
@@ -1895,16 +2066,15 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
     constraint_note = ""
     if action == "exclude_color":
         colors = payload.get("colors", [])
-        session.constraints = session.constraints or {}
-        session.constraints.setdefault("exclude_colors", [])
-        session.constraints["exclude_colors"] = list(set(session.constraints["exclude_colors"]) | set(colors))
+        _cur = list((session.constraints or {}).get("exclude_colors") or [])
+        _set_constraint(session, "exclude_colors", list(set(_cur) | set(colors)))
         constraint_note = f"已按你的要求排除「{', '.join(colors)}」，重新搭了一套：\n"
         action = "recommend"
 
     if action == "replace_category":
-        session.constraints = session.constraints or {}
-        session.constraints.setdefault("replace", [])
-        session.constraints["replace"].append({"from": payload.get("from", ""), "to": payload.get("to", "")})
+        _cur = list((session.constraints or {}).get("replace") or [])
+        _cur.append({"from": payload.get("from", ""), "to": payload.get("to", "")})
+        _set_constraint(session, "replace", _cur)
         constraint_note = f"已把「{payload.get('from')}」换成「{payload.get('to')}」倾向，重新搭了一套：\n"
         action = "recommend"
 
@@ -1988,6 +2158,9 @@ def send_message(session_id: str, req: schemas.ChatMessagePayload, request: Requ
         ]
         if _prefs:
             _ctx_lines.append("用户长期偏好：" + "、".join(_prefs))
+        _vibe_note = (session.constraints or {}).get("vibe_note")
+        if _vibe_note:
+            _ctx_lines.append(f"用户对氛围的落位要求：{_vibe_note}")
         _ctx_lines.extend(_closet_inventory_context(_item_dicts(db, session.user_id)))
         _closet_context = "\n".join(_ctx_lines)
         query = payload.get("text", "")
@@ -2479,6 +2652,9 @@ def send_message_stream(session_id: str, user_id: str,
         ]
         if _prefs:
             _ctx_lines.append("用户长期偏好：" + "、".join(_prefs))
+        _vibe_note = (session.constraints or {}).get("vibe_note")
+        if _vibe_note:
+            _ctx_lines.append(f"用户对氛围的落位要求：{_vibe_note}")
         _ctx_lines.extend(_closet_inventory_context(_item_dicts(db, session.user_id)))
         _closet_context = "\n".join(_ctx_lines)
 

@@ -115,6 +115,37 @@
       "dimension": "weather",
       "condition": { "rain_probability_gte": 50, "forbid_sub_category": ["凉鞋", "拖鞋"] },
       "source": "天气适配常识"
+    },
+    {
+      "rule_id": "F014",
+      "name": "面料冲突-精致内搭禁硬壳外套",
+      "dimension": "fabric",
+      "condition": {
+        "delicate_inner_fabric": ["真丝", "桑蚕丝", "雪纺", "蕾丝", "缎", "丝", "醋酸"],
+        "forbid_outer_keywords": ["冲锋衣", "防风衣", "滑雪服", "硬壳", "机能"],
+        "check_categories": ["上装", "连衣裙", "外套"]
+      },
+      "note": "丝/雪纺内搭配冲锋衣属于材质语言互斥，整组淘汰；围巾等配饰不参与判定。有 fabric 字段时只信字段，避免「丝光棉」误杀。",
+      "source": "K-MAT-14（03_服装材料与面料特性知识库.md）· 材质语言一致性（工程化规则）"
+    },
+    {
+      "rule_id": "F015",
+      "name": "正式场合正式度下限",
+      "dimension": "occasion",
+      "condition": { "occasion": ["面试", "正式"], "max_formality_level": 1 },
+      "note": "正式度≤1 属运动/居家档，不能进面试或正式场合；比子品类黑名单更通用。缺失值按中性 3 处理。",
+      "source": "场景着装礼仪规范"
+    },
+    {
+      "rule_id": "F016",
+      "name": "场合语境冲突-正式单品禁强休闲单品",
+      "dimension": "occasion",
+      "condition": {
+        "formal_anchor": { "min_formality_level": 4, "categories": ["上装", "下装", "外套", "连衣裙", "套装", "鞋"] },
+        "strong_casual_sub_categories": ["拖鞋", "凉鞋", "洞洞鞋", "卫衣", "运动裤", "短裤", "背心", "吊带", "家居服"]
+      },
+      "note": "西裤/西装外套等正式单品与拖鞋/卫衣等强休闲单品不能同框，整组淘汰。T恤、运动鞋属可接受 smart casual，不在禁止列。",
+      "source": "K-ETQ-04 三大类场合着装规范 + K-ETQ-05 正式度分级（04_场景着装礼仪规范知识库.md）"
     }
   ]
 }

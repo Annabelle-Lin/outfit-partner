@@ -73,11 +73,12 @@
     },
     {
       "rule_id": "S010",
-      "name": "新鲜度",
-      "dimension": "freshness",
-      "condition": { "days_since_last_worn_min": 7 },
-      "weight": 0.5,
-      "source": "胶囊衣橱管理理论"
+      "name": "雨天鞋履适配",
+      "dimension": "weather",
+      "condition": { "rain_probability_gte": 50, "forbid_sub_category": ["凉鞋", "拖鞋"] },
+      "weight": 2.0,
+      "note": "有降雨且鞋为闭合式时 +2。v1.1 修正：原登记为「新鲜度」，与 engine.py 实际逻辑不符。",
+      "source": "K-WEA-05（04_场景着装礼仪规范知识库.md）· 降雨与风力的场景影响"
     },
     {
       "rule_id": "S011",
@@ -121,6 +122,68 @@
       "weight": 1.5,
       "note": "内层贴身透气、中层保暖、外层防风防水；湿冷/雨天尤其合适。雨天内外两层也加分。",
       "source": "三明治穿衣法（中国气象局推荐）"
+    },
+    {
+      "rule_id": "S015",
+      "name": "跨单品风格一致性",
+      "dimension": "style",
+      "condition": {
+        "style_axes": { "基础款": "clean", "简约": "clean", "中性": "clean", "通勤": "formal", "休闲": "casual", "运动": "sport", "甜美": "soft", "设计款": "statement", "复古": "retro" },
+        "conflicting_pairs": [["formal", "sport"], ["formal", "soft"], ["sport", "soft"], ["sport", "retro"], ["sport", "statement"]]
+      },
+      "weight": 3.0,
+      "note": "风格互斥 -4，全同风格 +3，风格协调但不同轴 +1.5。clean/casual 为百搭中性轴，不与任何轴冲突。配饰不参与判定。",
+      "source": "K-SHP-16（02_服装造型与版型体型适配知识库.md）· 跨单品风格轴兼容矩阵（工程化规则）"
+    },
+    {
+      "rule_id": "S016",
+      "name": "整套正式度与场合契合",
+      "dimension": "occasion",
+      "condition": {
+        "target_formality": { "面试": 5, "正式": 5, "通勤": 4, "出差": 4, "约会": 3, "聚会": 3, "日常": 2, "上课": 2, "出游": 2, "旅游": 2, "居家": 1, "运动": 1 }
+      },
+      "weight": 2.0,
+      "note": "整套平均正式度与场合目标偏差≤0.75 +2，≤1.5 +0.5，否则 -3。不使用配饰的正式度，避免配件占位值干扰。",
+      "source": "场景着装礼仪规范"
+    },
+    {
+      "rule_id": "V001",
+      "name": "配色比例（影子分）",
+      "dimension": "visual",
+      "condition": {
+        "area_proxy": { "large": ["上装", "下装", "连衣裙", "套装", "外套"], "accent": ["鞋", "配饰"] },
+        "neutral_base": ["黑", "白", "灰", "米", "卡其"]
+      },
+      "weight": 0.0,
+      "shadow": true,
+      "note": "影子模式：仅写入 visual_scores 明细，不并入 score、不改排序。评主色/辅助色/点缀的面积配比（面积按品类角色近似推算，衣橱无真实占比字段）；与 S004-S006 色相关系、F005 颜色数量正交。单项范围 -0.5~2.0。等新旧排序对比确认后再定是否并入与权重。",
+      "source": "K-COL 配色比例理论（主色/辅助色/点缀色 6:3:1）+ 外部改进方案 M4 视觉美感维度"
+    },
+    {
+      "rule_id": "V002",
+      "name": "版型协调（影子分）",
+      "dimension": "visual",
+      "condition": {
+        "skip_conflict": "S007 上宽下窄已认领，本项跳过不重复计分",
+        "dimensions": ["fit_silhouette", "fit_snug"]
+      },
+      "weight": 0.0,
+      "shadow": true,
+      "note": "影子模式：仅写入 visual_scores 明细，不并入 score。评上下松紧组合——上紧下松 +1、上下同宽 -0.8、上下同紧 -0.6；S007 已给分的「上宽下窄」记 0 不重复。fit_silhouette 缺失退 fit_snug，取不到不臆造。单项范围 -0.8~1.0。",
+      "source": "K-SHP 版型比例理论 + 外部改进方案 M4 视觉美感维度"
+    },
+    {
+      "rule_id": "V003",
+      "name": "材质协调（影子分）",
+      "dimension": "visual",
+      "condition": {
+        "family_source": "rules/clothing_meta.json fabric_family",
+        "match": "fabric_similarity"
+      },
+      "weight": 0.0,
+      "shadow": true,
+      "note": "影子模式：仅写入 visual_scores 明细，不并入 score。fabric 归一后用 fabric_family 判整套质感——同家族 +0.5、异家族 -0.6；混纺半匹配记 0 不臆造。只处理 S009 季节、F014 硬拦之外的软层。单项范围 -0.6~0.5。",
+      "source": "K-MAT-14 材质语言一致性 + fabric_family 家族分组（clothing_meta.json）"
     }
   ]
 }
